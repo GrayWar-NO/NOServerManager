@@ -11,7 +11,6 @@ class CentralServer(private val port: Int = 50051) {
         .addService(object : EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImplBase() {
             override suspend fun reportStatus(request: StatusRequest): StatusResponse {
                 println("[Central] Received status from ${request.agentId}")
-                println("   Active servers: ${request.activeServers}")
                 // You could persist the data, update a dashboard, etc.
                 return StatusResponse.newBuilder().setOk(true).build()
             }

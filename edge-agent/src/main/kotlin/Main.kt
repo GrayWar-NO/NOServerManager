@@ -16,7 +16,7 @@ import java.time.Instant
  */
 private const val GAME_SERVER_HOST = "localhost"   // name on the Docker network
 private const val GAME_SERVER_PORT = 10042            // whatever your game server listens to
-private const val CENTRAL_GRPC_HOST = "central"
+private const val CENTRAL_GRPC_HOST = "localhost"
 private const val CENTRAL_GRPC_PORT = 50051
 
 /**
@@ -88,5 +88,7 @@ private suspend fun cleanup(
     forwardJob.cancelAndJoin()
     reportJob.cancelAndJoin()
     channel.shutdownNow()
-    if (!socket.isClosed) socket.close()
+    if (!socket.isClosed) withContext(Dispatchers.IO) {
+        socket.close()
+    }
 }
