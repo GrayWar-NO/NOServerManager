@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package com.graywar.noServerManager.proto;
+
+
+
+option java_multiple_files = true;
+option java_package = "com.graywar.noServerManager.proto";
+
+
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------
+
+message StatusRequest {
+  string agent_id      = 1;   // e.g. hostname or Docker container id
+  google.protobuf.Timestamp last_heartbeat = 3;
+}
+
+message StatusResponse {
+  bool ok = 1;
+}
+
+// ---------------------------------------------------------------------
+// Service – the only RPC that the edge‑agent will call on the central
+// ---------------------------------------------------------------------
+
+service EdgeAgentService {
+  // The edge agent calls this to report its status.
+  rpc ReportStatus(StatusRequest) returns (StatusResponse);
+}
