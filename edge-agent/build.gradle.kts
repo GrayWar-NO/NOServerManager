@@ -20,6 +20,7 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation(project(":proto"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     implementation("com.google.protobuf:protobuf-java:4.28.2")
     implementation("io.grpc:grpc-kotlin-stub:1.4.1")
     implementation("io.grpc:grpc-protobuf:1.59.0")

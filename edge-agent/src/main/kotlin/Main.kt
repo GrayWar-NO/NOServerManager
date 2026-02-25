@@ -6,6 +6,7 @@ import com.graywar.noServerManager.proto.StatusRequest
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
+import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.Socket
@@ -29,14 +30,28 @@ fun main() = runBlocking {
     val socket = Socket(GAME_SERVER_HOST, GAME_SERVER_PORT)
     println("[Edge] Connected to game server at $GAME_SERVER_HOST:$GAME_SERVER_PORT")
 
+    val serverJsonCommunicator = Json {
+        ignoreUnknownKeys = true
+        classDiscriminator = "type"
+    }
+
     // Launch a coroutine that simply forwards whatever the game server sends
     // (for demo purposes we just print it; in production you’d forward or transform it).
-    val forwardJob = launch(Dispatchers.IO) {
+    val receiveFromGameJob = launch(Dispatchers.IO) {
         val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
         var line: String?
         while (reader.readLine().also { line = it } != null) {
-            println("[Edge] Game server says: $line")
-            // TODO: forward to the actual game client or store
+            println("[Edge] Game says $line")
+            if (line == null) continue
+            val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)
+            when (packet) {
+                is PingPacket -> TODO()
+                is ChatLogPacket -> TODO()
+                is CommandPacket -> TODO()
+                is LogEntryPacket -> TODO()
+                is ResponsePacket -> TODO()
+            }
+            // TODO: Process
         }
     }
 
@@ -68,24 +83,24 @@ fun main() = runBlocking {
 
     // ---------- 4️⃣  Graceful shutdown ----------
     Runtime.getRuntime().addShutdownHook(Thread {
-        runBlocking { cleanup(forwardJob, reportJob, channel, socket) }
+        runBlocking { cleanup(receiveFromGameJob, reportJob, channel, socket) }
     })
 
     // Wait until either the forward or report job fails.
     select<Unit> {
-        forwardJob.onJoin {}
+        receiveFromGameJob.onJoin {}
         reportJob.onJoin {}
     }
 }
 
 private suspend fun cleanup(
-    forwardJob: Job,
+    receiveFromGameJob: Job,
     reportJob: Job,
     channel: io.grpc.ManagedChannel,
     socket: Socket
 ) {
     println("[Edge] Shutting down…")
-    forwardJob.cancelAndJoin()
+    receiveFromGameJob.cancelAndJoin()
     reportJob.cancelAndJoin()
     channel.shutdownNow()
     if (!socket.isClosed) withContext(Dispatchers.IO) {

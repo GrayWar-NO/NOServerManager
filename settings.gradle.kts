@@ -6,6 +6,3 @@ rootProject.name = "NOServerManager"
 include("proto")
 include("edge-agent")
 include("db-manager")
-include("proto")
-include("db-manager")
-include("edge-agent")
