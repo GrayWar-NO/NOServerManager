@@ -35,13 +35,3 @@ data class LogEntryPacket(
     val Channel: LogChannel,
     val LogText: String
 ) : GamePacket()
-
-@Serializable
-@SerialName("ChatLog")
-data class ChatLogPacket(
-    val Channel: LogChannel,
-    val LogText: String,
-    val ChatName: String
-) : GamePacket()
-
-

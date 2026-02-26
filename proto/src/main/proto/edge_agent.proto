@@ -23,11 +23,39 @@ message StatusResponse {
   bool ok = 1;
 }
 
+message BanRequest {
+  bool shouldBeBanned = 1;
+  uint64 steamID = 2;
+}
+
+message ChatLog{
+  google.protobuf.Timestamp messageSendTime = 1;
+  string messageChannel = 2;
+  string message = 3;
+}
+
+message ChatLogs{
+  repeated ChatLog logs = 1;
+}
+
+message Ack {
+  bool ok = 1;
+}
+
+
+
 // ---------------------------------------------------------------------
-// Service – the only RPC that the edge‑agent will call on the central
+// Services
 // ---------------------------------------------------------------------
 
 service EdgeAgentService {
   // The edge agent calls this to report its status.
   rpc ReportStatus(StatusRequest) returns (StatusResponse);
+  rpc SendBan(BanRequest) returns (Ack); // TODO
+  rpc SendChatLogs(ChatLogs) returns (Ack);
+}
+
+
+service CentralService {
+  rpc ForwardBan(BanRequest) returns (Ack); // TODO
 }

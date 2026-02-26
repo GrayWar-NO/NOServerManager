@@ -34,6 +34,14 @@ fun main() = runBlocking {
         classDiscriminator = "Type"
     }
 
+    val channel = ManagedChannelBuilder.forAddress(CENTRAL_GRPC_HOST, CENTRAL_GRPC_PORT)
+        .usePlaintext()
+        .build()
+
+    val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
+
+    val logsBuffer = ChatLogsBuffer(grpcStub)
+
     val jobs = mutableListOf<Job>()
 
     // Launch a coroutine that simply forwards whatever the game server sends
@@ -44,10 +52,10 @@ fun main() = runBlocking {
             while (reader.readLine().also { line = it } != null) {
                 println("[Edge] Game says $line")
                 if (line == null) continue
-                var outPacket: GamePacket?
+                var outPacket: GamePacket? = null
                 when (val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)) {
                     is PingPacket -> { outPacket = pingProc.processPacket(packet) }
-                    is ChatLogPacket -> TODO()
+                    is ChatLogPacket -> logsBuffer.addLog(packet)
                     is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
                     is LogEntryPacket -> TODO()
                     is ResponsePacket -> TODO()
@@ -61,11 +69,6 @@ fun main() = runBlocking {
     )
 
     // ---------- 2️⃣  gRPC channel to central manager ----------
-    val channel = ManagedChannelBuilder.forAddress(CENTRAL_GRPC_HOST, CENTRAL_GRPC_PORT)
-        .usePlaintext()
-        .build()
-
-    val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
 
     // ---------- 3️⃣  Periodic status reporting ----------
     jobs.add(
