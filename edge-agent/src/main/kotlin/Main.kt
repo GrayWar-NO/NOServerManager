@@ -57,7 +57,7 @@ fun main() = runBlocking {
                     is PingPacket -> { outPacket = pingProc.processPacket(packet) }
                     is ChatLogPacket -> logsBuffer.addLog(packet)
                     is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
-                    is LogEntryPacket -> TODO()
+                    is LogEntryPacket -> { outPacket = logEntryProcessor(packet) }
                     is ResponsePacket -> TODO()
                 }
                 if (outPacket != null) {

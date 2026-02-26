@@ -2,16 +2,6 @@ package com.graywar.noServerManager.edge
 
 import kotlinx.serialization.*
 
-enum class LogChannel{
-    Info,
-    Chat,
-    Teamkill,
-    Kill,
-    Kick,
-    Ban,
-    Warn
-}
-
 
 @Serializable
 sealed class GamePacket
@@ -27,11 +17,4 @@ data class ResponsePacket(
 data class CommandPacket(
     val CommandName: String,
     val Arguments: List<String>
-) : GamePacket()
-
-@Serializable
-@SerialName("LogEntry")
-data class LogEntryPacket(
-    val Channel: LogChannel,
-    val LogText: String
 ) : GamePacket()
