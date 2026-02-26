@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm")
     application
     id("com.google.protobuf") version "0.9.4"
-
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.10"
 }
 
 group = "com.graywar"
