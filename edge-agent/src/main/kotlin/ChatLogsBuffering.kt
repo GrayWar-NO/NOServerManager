@@ -15,8 +15,7 @@ import java.time.Instant
 @Serializable
 @SerialName("ChatLog")
 data class ChatLogPacket(
-    val Channel: LogChannel,
-    val LogText: String,
+    val MessageText: String,
     val ChatName: String
 ) : GamePacket()
 
@@ -30,7 +29,7 @@ class ChatLogsBuffer(val grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCorout
 
     suspend fun addLog(logPacket: ChatLogPacket){
         val log = ChatLog.newBuilder()
-            .setMessage(logPacket.LogText)
+            .setMessage(logPacket.MessageText)
             .setMessageChannel(logPacket.ChatName)
             .setMessageSendTime(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build())
             .build()
