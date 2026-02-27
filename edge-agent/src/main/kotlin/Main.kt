@@ -49,7 +49,7 @@ fun main() = runBlocking {
         launch(Dispatchers.IO) {
             val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
             var line: String?
-            while (reader.readLine().also { line = it } != null) {
+            while (reader.readLine().also { line = it } != null && isActive) {
                 println("[Edge] Game says $line")
                 if (line == null) continue
                 var outPacket: GamePacket? = null
@@ -124,7 +124,7 @@ private suspend fun cleanup(
 ) {
     println("[Edge] Shutting down…")
     for (job in jobs) {
-        job.cancel("Shutting down")
+        job.cancelAndJoin()
     }
     channel.shutdownNow()
     if (!socket.isClosed) withContext(Dispatchers.IO) {
