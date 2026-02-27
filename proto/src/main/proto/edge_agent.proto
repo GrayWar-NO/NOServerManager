@@ -23,12 +23,18 @@ message StatusResponse {
   bool ok = 1;
 }
 
+
+message AgentInfo{
+  string agentID = 1;
+}
+
 message BanRequest {
   bool shouldBeBanned = 1;
   uint64 steamID = 2;
   string reason = 3;
   google.protobuf.Timestamp ban_start = 4;
   google.protobuf.Timestamp ban_end = 5;
+  string agentID = 6;
 }
 
 message ChatLog{
@@ -54,11 +60,8 @@ message Ack {
 service EdgeAgentService {
   // The edge agent calls this to report its status.
   rpc ReportStatus(StatusRequest) returns (StatusResponse);
-  rpc SendBan(BanRequest) returns (Ack); // TODO
-  rpc SendChatLogs(ChatLogs) returns (Ack);
-}
+  rpc SendBan(BanRequest) returns (Ack);
+  rpc SendChatLogs(ChatLogs) returns (Ack); // TODO make stream
 
-
-service CentralService {
-  rpc ForwardBan(BanRequest) returns (Ack); // TODO
+  rpc SubscribeToBans(AgentInfo) returns (stream BanRequest);
 }

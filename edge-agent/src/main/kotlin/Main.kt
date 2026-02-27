@@ -1,8 +1,10 @@
 package com.graywar.noServerManager.edge
 
 import com.google.protobuf.Timestamp
+import com.graywar.noServerManager.proto.AgentInfo
 import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
 import com.graywar.noServerManager.proto.StatusRequest
+import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
@@ -20,6 +22,7 @@ private const val GAME_SERVER_HOST = "localhost"   // name on the Docker network
 private const val GAME_SERVER_PORT = 10042            // whatever your game server listens to
 private const val CENTRAL_GRPC_HOST = "localhost"
 private const val CENTRAL_GRPC_PORT = 50051
+private const val SERVER_NAME = "TEST"
 
 fun main() = runBlocking {
     // ---------- 1️⃣  Open TCP connection to the game server ----------
@@ -43,6 +46,23 @@ fun main() = runBlocking {
     val logsBuffer = ChatLogsBuffer(grpcStub)
 
     val jobs = mutableListOf<Job>()
+
+    jobs.add( launch(Dispatchers.IO){
+        val banFlow = grpcStub.subscribeToBans(
+            AgentInfo.newBuilder().setAgentID(SERVER_NAME).build()
+        )
+
+        banFlow.collect { ban ->
+            val banCommandPacket = CommandPacket(
+                CommandName = "ban",
+                Arguments = listOf(ban.steamID.toString(), ban.reason)
+            )
+            withContext(Dispatchers.IO) {
+                writer.write(Json.encodeToString(banCommandPacket) + "\n")
+                writer.flush()
+            }
+        }
+    })
 
     // Launch a coroutine that simply forwards whatever the game server sends
     jobs.add(
@@ -119,7 +139,7 @@ fun main() = runBlocking {
 
 private suspend fun cleanup(
     jobs: List<Job>,
-    channel: io.grpc.ManagedChannel,
+    channel: ManagedChannel,
     socket: Socket
 ) {
     println("[Edge] Shutting down…")
