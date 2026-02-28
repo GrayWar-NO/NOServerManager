@@ -11,10 +11,3 @@ sealed class GamePacket
 data class ResponsePacket(
     val ResponseText: String
 ) : GamePacket()
-
-@Serializable
-@SerialName("Command")
-data class CommandPacket(
-    val CommandName: String,
-    val Arguments: List<String>
-) : GamePacket()

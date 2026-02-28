@@ -47,6 +47,9 @@ fun main() = runBlocking {
 
     val jobs = mutableListOf<Job>()
 
+    val cmdMgr = CommandManager(writer, scope = CoroutineScope(Dispatchers.Default))
+    cmdMgr.start()
+
     jobs.add( launch(Dispatchers.IO){
         val banFlow = grpcStub.subscribeToBans(
             AgentInfo.newBuilder().setAgentID(SERVER_NAME).build()
@@ -55,13 +58,10 @@ fun main() = runBlocking {
         banFlow.collect { ban ->
             val banCommandPacket = CommandPacket(
                 CommandName = "ban",
-                Arguments = listOf(ban.steamID.toString(), ban.reason)
+                Arguments = listOf(ban.steamID.toString(), ban.reason),
+                Result = false
             )
-            withContext(Dispatchers.IO) {
-                writer.write(Json.encodeToString(banCommandPacket))
-                writer.newLine()
-                writer.flush()
-            }
+            cmdMgr.enqueueCommand(banCommandPacket)
         }
     })
 
@@ -79,7 +79,7 @@ fun main() = runBlocking {
                     is ChatLogPacket -> logsBuffer.addLog(packet)
                     is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
                     is LogEntryPacket -> { outPacket = logEntryProcessor(packet, grpcStub) }
-                    is ResponsePacket -> TODO()
+                    is ResponsePacket -> cmdMgr.onReceivePacket(packet)
                 }
                 if (outPacket != null) {
                     writer.write(Json.encodeToString(outPacket))
@@ -129,7 +129,7 @@ fun main() = runBlocking {
 
     // ---------- 4️⃣  Graceful shutdown ----------
     Runtime.getRuntime().addShutdownHook(Thread {
-        runBlocking { cleanup(jobs, channel, socket) }
+        runBlocking { cleanup(jobs, channel, socket, cmdMgr) }
     })
 
     // Wait until either one of the jobs fail.
@@ -142,12 +142,14 @@ fun main() = runBlocking {
 private suspend fun cleanup(
     jobs: List<Job>,
     channel: ManagedChannel,
-    socket: Socket
+    socket: Socket,
+    cmdMgr: CommandManager
 ) {
     println("[Edge] Shutting down…")
     for (job in jobs) {
         job.cancelAndJoin()
     }
+    cmdMgr.stop()
     channel.shutdownNow()
     if (!socket.isClosed) withContext(Dispatchers.IO) {
         socket.close()
