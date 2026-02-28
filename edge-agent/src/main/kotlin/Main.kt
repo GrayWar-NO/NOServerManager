@@ -58,7 +58,8 @@ fun main() = runBlocking {
                 Arguments = listOf(ban.steamID.toString(), ban.reason)
             )
             withContext(Dispatchers.IO) {
-                writer.write(Json.encodeToString(banCommandPacket) + "\n")
+                writer.write(Json.encodeToString(banCommandPacket))
+                writer.newLine()
                 writer.flush()
             }
         }
@@ -81,7 +82,8 @@ fun main() = runBlocking {
                     is ResponsePacket -> TODO()
                 }
                 if (outPacket != null) {
-                    writer.write(Json.encodeToString(outPacket) + "\n")
+                    writer.write(Json.encodeToString(outPacket))
+                    writer.newLine()
                     writer.flush()
                 }
             }
