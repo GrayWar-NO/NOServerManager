@@ -7,11 +7,11 @@ import kotlinx.serialization.json.Json
 import java.io.BufferedWriter
 
 @Serializable
-@SerialName("Command")
+@SerialName("command")
 data class CommandPacket(
-    val CommandName: String,
-    val Arguments: List<String>,
-    val Result: Boolean
+    val commandName: String,
+    val arguments: List<String>,
+    val result: Boolean = false
 ) : GamePacket()
 
 data class QueuedCommand(
@@ -29,6 +29,9 @@ class CommandManager(
 
     private var job: Job? = null
 
+    private val json = Json { encodeDefaults = true }
+
+
     fun start() {
         job = scope.launch {
             for (queued in commandQueue) {
@@ -44,7 +47,7 @@ class CommandManager(
     }
 
     suspend fun enqueueCommand(packet: CommandPacket): ResponsePacket? {
-        if (!packet.Result){
+        if (!packet.result){
             commandQueue.send(QueuedCommand(packet))
             return null
         }
@@ -53,9 +56,9 @@ class CommandManager(
         return deferred.await()
     }
 
-    private suspend fun sendCommand(packet: CommandPacket) {
+    private suspend fun sendCommand(packet: GamePacket) {
         withContext(Dispatchers.IO) {
-            writer.write(Json.encodeToString(packet))
+            writer.write(json.encodeToString(packet))
             writer.newLine()
             writer.flush()
         }

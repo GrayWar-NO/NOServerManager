@@ -5,9 +5,9 @@ import kotlinx.serialization.json.Json
 import java.io.BufferedWriter
 
 @Serializable
-@SerialName("Ping")
+@SerialName("ping")
 data class PingPacket(
-    val Data: String,
+    val data: String,
 ) : GamePacket()
 
 class PingPacketProcessor
@@ -32,7 +32,7 @@ class PingPacketProcessor
             return false
         }
         pingPacketOutbound = true
-        val packet: GamePacket = PingPacket(Data="TEST")
+        val packet: GamePacket = PingPacket(data="TEST")
         writer.write(json.encodeToString(packet))
         writer.newLine()
         writer.flush()

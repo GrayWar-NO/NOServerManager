@@ -34,7 +34,7 @@ fun main() = runBlocking {
 
     val serverJsonCommunicator = Json {
         ignoreUnknownKeys = true
-        classDiscriminator = "Type"
+        classDiscriminator = "type"
     }
 
     val channel = ManagedChannelBuilder.forAddress(CENTRAL_GRPC_HOST, CENTRAL_GRPC_PORT)
@@ -57,9 +57,9 @@ fun main() = runBlocking {
 
         banFlow.collect { ban ->
             val banCommandPacket = CommandPacket(
-                CommandName = "ban",
-                Arguments = listOf(ban.steamID.toString(), ban.reason),
-                Result = false
+                commandName = "ban",
+                arguments = listOf(ban.steamID.toString(), ban.reason),
+                result = false
             )
             cmdMgr.enqueueCommand(banCommandPacket)
         }

@@ -13,10 +13,10 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 
 @Serializable
-@SerialName("ChatLog")
+@SerialName("chatlog")
 data class ChatLogPacket(
-    val MessageText: String,
-    val ChatName: String
+    val logText: String,
+    val chatName: String
 ) : GamePacket()
 
 
@@ -29,8 +29,8 @@ class ChatLogsBuffer(val grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCorout
 
     suspend fun addLog(logPacket: ChatLogPacket){
         val log = ChatLog.newBuilder()
-            .setMessage(logPacket.MessageText)
-            .setMessageChannel(logPacket.ChatName)
+            .setMessage(logPacket.logText)
+            .setMessageChannel(logPacket.chatName)
             .setMessageSendTime(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build())
             .build()
         addLog(log)

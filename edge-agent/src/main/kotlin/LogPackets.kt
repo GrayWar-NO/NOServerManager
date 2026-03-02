@@ -17,16 +17,16 @@ enum class LogChannel{
 
 
 @Serializable
-@SerialName("LogEntry")
+@SerialName("logEntry")
 data class LogEntryPacket(
-    val Channel: LogChannel,
-    val LogText: String
+    val channel: LogChannel,
+    val logText: String
 ) : GamePacket()
 
 suspend fun logEntryProcessor(packet: LogEntryPacket,
                               grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): GamePacket? {
     var rtPacket: GamePacket? = null
-    when (packet.Channel) {
+    when (packet.channel) {
         LogChannel.JoinLeave -> TODO()
         LogChannel.Warn -> TODO()
         LogChannel.Teamkill -> rtPacket = TODO()
@@ -38,9 +38,9 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
 }
 
 suspend fun sendBan(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub) {
-    if (packet.Channel != LogChannel.Ban) throw Exception("Send ban failed: Packet is not a ban packet.")
-    val values = packet.LogText.split(':')
-    if (values.size != 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.LogText)
+    if (packet.channel != LogChannel.Ban) throw Exception("Send ban failed: Packet is not a ban packet.")
+    val values = packet.logText.split(':')
+    if (values.size != 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
     val timestampEnd: Timestamp?
     if (values[4] == "") timestampEnd = null

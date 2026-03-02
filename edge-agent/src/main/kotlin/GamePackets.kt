@@ -7,7 +7,7 @@ import kotlinx.serialization.*
 sealed class GamePacket
 
 @Serializable
-@SerialName("Response")
+@SerialName("response")
 data class ResponsePacket(
-    val ResponseText: String
+    val responseText: String
 ) : GamePacket()
