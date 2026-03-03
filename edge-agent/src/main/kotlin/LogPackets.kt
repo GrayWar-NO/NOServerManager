@@ -8,6 +8,7 @@ import java.time.Instant
 
 enum class LogChannel{
     JoinLeave,
+    MissionStatus,
     Teamkill,
     Kill,
     Kick,
@@ -28,6 +29,7 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
     var rtPacket: GamePacket? = null
     when (packet.channel) {
         LogChannel.JoinLeave -> TODO()
+        LogChannel.MissionStatus -> TODO()
         LogChannel.Warn -> TODO()
         LogChannel.Teamkill -> rtPacket = TODO()
         LogChannel.Kill -> TODO()
