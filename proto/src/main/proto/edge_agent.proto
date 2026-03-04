@@ -7,7 +7,7 @@ package com.graywar.noServerManager.proto;
 option java_multiple_files = true;
 option java_package = "com.graywar.noServerManager.proto";
 
-
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 // ---------------------------------------------------------------------
@@ -15,7 +15,6 @@ import "google/protobuf/timestamp.proto";
 // ---------------------------------------------------------------------
 
 message StatusRequest {
-  string agent_id      = 1;   // e.g. hostname or Docker container id
   google.protobuf.Timestamp last_heartbeat = 3;
 }
 
@@ -24,17 +23,12 @@ message StatusResponse {
 }
 
 
-message AgentInfo{
-  string agentID = 1;
-}
-
 message BanRequest {
   bool shouldBeBanned = 1;
   uint64 steamID = 2;
   string reason = 3;
   google.protobuf.Timestamp ban_start = 4;
   google.protobuf.Timestamp ban_end = 5;
-  string agentID = 6;
 }
 
 message ChatLog{
@@ -95,5 +89,5 @@ service EdgeAgentService {
   rpc SentTeamKill(KillLog) returns (Ack); // TODO
 
   rpc SendChatLogsStream(stream ChatLog) returns (Ack);
-  rpc SubscribeToBans(AgentInfo) returns (stream BanRequest);
+  rpc SubscribeToBans(google.protobuf.Empty) returns (stream BanRequest);
 }

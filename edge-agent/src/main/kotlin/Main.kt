@@ -1,21 +1,24 @@
 package com.graywar.noServerManager.edge
 
+import com.google.protobuf.Empty
 import com.google.protobuf.Timestamp
-import com.graywar.noServerManager.proto.AgentInfo
 import com.graywar.noServerManager.proto.ChatLog
 import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
 import com.graywar.noServerManager.proto.StatusRequest
 import com.sksamuel.hoplite.ConfigLoaderBuilder
 import com.sksamuel.hoplite.addResourceSource
 import io.grpc.ManagedChannel
-import io.grpc.ManagedChannelBuilder
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.BufferedWriter
+import java.io.File
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.Socket
@@ -44,22 +47,36 @@ fun main() = runBlocking {
     }
 
     // ---------- 2️⃣  gRPC channel to central manager ----------
-    val channel = ManagedChannelBuilder.forAddress(config.central.host, config.central.port)
-        .usePlaintext()
+    val sslContext = GrpcSslContexts.forClient()
+        .trustManager(File("CA/ca.crt")) // trust server
+        .keyManager(
+            File("CA/client.crt"), // client certificate
+            File("CA/client.key")  // client private key
+        )
+        .build()
+
+    val channel = NettyChannelBuilder
+        .forAddress(config.central.host, config.central.port)
+        .sslContext(sslContext)
         .build()
 
     val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
 
-    val chatLogsFlow = MutableSharedFlow<ChatLog>()
+    val chatLogsFlow = Channel<ChatLog>()
 
     val jobs = mutableListOf<Job>()
 
     val cmdMgr = CommandManager(writer, scope = CoroutineScope(Dispatchers.Default))
     cmdMgr.start()
 
+    jobs.add (launch (Dispatchers.IO){
+        val ack = grpcStub.sendChatLogsStream(chatLogsFlow.consumeAsFlow())
+        println("Server flow ok: ${ack.ok}")
+    })
+
     jobs.add( launch(Dispatchers.IO){
         val banFlow = grpcStub.subscribeToBans(
-            AgentInfo.newBuilder().setAgentID(config.name).build()
+            Empty.getDefaultInstance()
         )
 
         banFlow.collect { ban ->
@@ -102,7 +119,6 @@ fun main() = runBlocking {
         launch {
             while (isActive) {
                 val request = StatusRequest.newBuilder()
-                    .setAgentId(socket.inetAddress.hostName)
                     .setLastHeartbeat(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build())
                     .build()
 
@@ -134,7 +150,7 @@ fun main() = runBlocking {
 
     // ---------- 4️⃣  Graceful shutdown ----------
     Runtime.getRuntime().addShutdownHook(Thread {
-        runBlocking { cleanup(jobs, channel, socket, cmdMgr) }
+        runBlocking { cleanup(jobs, channel, socket, cmdMgr, chatLogsFlow) }
     })
 
     // Wait until either one of the jobs fail.
@@ -148,12 +164,14 @@ private suspend fun cleanup(
     jobs: List<Job>,
     channel: ManagedChannel,
     socket: Socket,
-    cmdMgr: CommandManager
+    cmdMgr: CommandManager,
+    chatLogsFlow: Channel<ChatLog>
 ) {
     println("[Edge] Shutting down…")
     for (job in jobs) {
         job.cancelAndJoin()
     }
+    chatLogsFlow.close()
     cmdMgr.stop()
     channel.shutdownNow()
     if (!socket.isClosed) withContext(Dispatchers.IO) {

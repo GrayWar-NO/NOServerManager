@@ -39,7 +39,8 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
     return rtPacket
 }
 
-suspend fun sendBan(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub) {
+suspend fun sendBan(packet: LogEntryPacket,
+                    grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub) {
     if (packet.channel != LogChannel.Ban) throw Exception("Send ban failed: Packet is not a ban packet.")
     val values = packet.logText.split(':')
     if (values.size != 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)

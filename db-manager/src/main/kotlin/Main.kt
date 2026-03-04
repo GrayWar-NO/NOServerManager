@@ -1,22 +1,42 @@
 package com.graywar.noServerManager.dbManager
 
-import com.graywar.noServerManager.proto.Ack
-import com.graywar.noServerManager.proto.AgentInfo
-import com.graywar.noServerManager.proto.BanRequest
-import com.graywar.noServerManager.proto.ChatLog
-import io.grpc.ServerBuilder
+import com.google.protobuf.Empty
+import com.graywar.noServerManager.proto.*
+import io.grpc.Context
+import io.grpc.Contexts
+import io.grpc.Grpc
+import io.grpc.ServerCall
+import io.grpc.ServerCallHandler
+import io.grpc.ServerInterceptor
+import io.grpc.ServerInterceptors
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
+import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
+import io.grpc.netty.shaded.io.netty.handler.ssl.ClientAuth
 import kotlinx.coroutines.runBlocking
-import com.graywar.noServerManager.proto.StatusResponse
-import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
-import com.graywar.noServerManager.proto.StatusRequest
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import java.io.File
 
 class CentralServer(private val port: Int = 50051) {
-    private val server = ServerBuilder.forPort(port)
-        .addService(EdgeAgentServiceImpl())
+    private val server = NettyServerBuilder
+        .forPort(port)
+        .sslContext(
+            GrpcSslContexts.forServer(
+                File("CA/central.crt"),
+                File("CA/central.key"),
+            )
+                .trustManager(File("CA/ca.crt"))
+                .clientAuth(ClientAuth.REQUIRE)
+                .build()
+        )
+        .addService(
+            ServerInterceptors.intercept(
+                EdgeAgentServiceImpl(),
+                AgentIdInterceptor()
+            )
+        )
         .build()
 
     fun start() = runBlocking {
@@ -33,7 +53,8 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
     private val subscribers = mutableMapOf<String, SendChannel<BanRequest>>()
 
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
-        println("[Central] Received status from ${request.agentId}")
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        println("[Central] Received status from $source")
         // TODO You could persist the data, update a dashboard, etc.
         return StatusResponse.newBuilder().setOk(true).build()
     }
@@ -47,26 +68,58 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
         return Ack.newBuilder().setOk(true).build()
     }
 
-    override fun subscribeToBans(request: AgentInfo): Flow<BanRequest> = channelFlow {
-        val agentId = request.agentID
-        println("[Central] $agentId subscribed to bans")
+    override fun subscribeToBans(request: Empty): Flow<BanRequest> = channelFlow {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        println("[Central] $source subscribed to bans")
 
-        subscribers[agentId] = channel
+        subscribers[source] = channel
 
         awaitClose {
-            println("[Central] $agentId disconnected")
-            subscribers.remove(agentId)
+            println("[Central] $source disconnected")
+            subscribers.remove(source)
         }
     }
 
     override suspend fun sendBan(request: BanRequest): Ack {
-        val source = request.agentID
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
         // TODO send to DB
         subscribers
             .filterKeys { key -> key != source }
             .forEach { (_, channel) -> channel.trySend(request) }
         return Ack.newBuilder().setOk(true).build()
     }
+}
+
+class AgentIdInterceptor : ServerInterceptor {
+
+    companion object {
+        val AGENT_ID_CTX_KEY: Context.Key<String> =
+            Context.key("agent-id")
+    }
+
+    override fun <ReqT, RespT> interceptCall(
+        call: ServerCall<ReqT, RespT>,
+        headers: io.grpc.Metadata,
+        next: ServerCallHandler<ReqT, RespT>
+    ): ServerCall.Listener<ReqT> {
+
+        val sslSession = call.attributes.get(Grpc.TRANSPORT_ATTR_SSL_SESSION)
+        val principal = sslSession?.peerPrincipal
+        val agentDn = principal?.name
+
+        val agentId = extractCommonName(agentDn)
+
+        val ctx = Context.current().withValue(AGENT_ID_CTX_KEY, agentId)
+
+        return Contexts.interceptCall(ctx, call, headers, next)
+    }
+
+    private fun extractCommonName(dn: String?): String? {
+        if (dn == null) return null
+        val regex = Regex("CN=([^,]+)")
+        return regex.find(dn)?.groupValues?.get(1)
+    }
+
 }
 
 fun main() = CentralServer().start()
