@@ -46,7 +46,9 @@ suspend fun sendBan(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Edg
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
     val timestampEnd: Timestamp?
     if (values[4] == "") timestampEnd = null
-    else if (!(values[4].endsWith('d', true) || values[4].endsWith('h', true))) {TODO()}
+    else if (!(values[4].endsWith('d', true) || values[4].endsWith('h', true))) {
+        timestampEnd = null
+    }
     else if (values[4].endsWith('d', true)){
         val nDays = values[4].removeSuffix("d").removeSuffix("D").toInt()
         timestampEnd = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond + (nDays * 24 * 3600)).build()

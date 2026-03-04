@@ -3,7 +3,7 @@ package com.graywar.noServerManager.dbManager
 import com.graywar.noServerManager.proto.Ack
 import com.graywar.noServerManager.proto.AgentInfo
 import com.graywar.noServerManager.proto.BanRequest
-import com.graywar.noServerManager.proto.ChatLogs
+import com.graywar.noServerManager.proto.ChatLog
 import io.grpc.ServerBuilder
 import kotlinx.coroutines.runBlocking
 import com.graywar.noServerManager.proto.StatusResponse
@@ -39,11 +39,11 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
     }
 
 
-    override suspend fun sendChatLogs(request: ChatLogs): Ack {
-        for (log in request.logsList) {
-            println(log.message)
+    override suspend fun sendChatLogsStream(requests: Flow<ChatLog>): Ack {
+        requests.collect { request ->
+                println(request.message)
+                // TODO send to DB
         }
-        // TODO send to DB
         return Ack.newBuilder().setOk(true).build()
     }
 
@@ -61,7 +61,7 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
 
     override suspend fun sendBan(request: BanRequest): Ack {
         val source = request.agentID
-
+        // TODO send to DB
         subscribers
             .filterKeys { key -> key != source }
             .forEach { (_, channel) -> channel.trySend(request) }

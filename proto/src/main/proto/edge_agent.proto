@@ -43,8 +43,34 @@ message ChatLog{
   string message = 3;
 }
 
-message ChatLogs{
-  repeated ChatLog logs = 1;
+message KickLog{
+  uint64 steamID = 1;
+  string reason = 2;
+  google.protobuf.Timestamp time = 3;
+}
+
+message WarnLog{
+  uint64 steamID = 1;
+  string reason = 2;
+  google.protobuf.Timestamp time = 3;
+}
+
+message JoinLeaveLog{
+  uint64 steamID = 1;
+  bool isOn = 2;
+  google.protobuf.Timestamp time = 3;
+}
+
+message missionStatus{
+  string missionName = 1;
+  google.protobuf.Timestamp time = 2;
+}
+
+message KillLog{
+  uint64 killer = 1;
+  uint64 killed = 2;
+  string weapon = 3;
+  google.protobuf.Timestamp time = 4;
 }
 
 message Ack {
@@ -61,7 +87,13 @@ service EdgeAgentService {
   // The edge agent calls this to report its status.
   rpc ReportStatus(StatusRequest) returns (StatusResponse);
   rpc SendBan(BanRequest) returns (Ack);
-  rpc SendChatLogs(ChatLogs) returns (Ack); // TODO make stream
+  rpc SendKick(KickLog) returns (Ack); // TODO
+  rpc SendWarn(WarnLog) returns (Ack); // TODO
+  rpc SendPlayerActivity(JoinLeaveLog) returns (Ack); // TODO
+  rpc SendMissionChange(missionStatus) returns (Ack); // TODO
+  rpc SendKill(KillLog) returns (Ack); // TODO
+  rpc SentTeamKill(KillLog) returns (Ack); // TODO
 
+  rpc SendChatLogsStream(stream ChatLog) returns (Ack);
   rpc SubscribeToBans(AgentInfo) returns (stream BanRequest);
 }

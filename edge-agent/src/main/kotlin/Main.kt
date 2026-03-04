@@ -2,6 +2,7 @@ package com.graywar.noServerManager.edge
 
 import com.google.protobuf.Timestamp
 import com.graywar.noServerManager.proto.AgentInfo
+import com.graywar.noServerManager.proto.ChatLog
 import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
 import com.graywar.noServerManager.proto.StatusRequest
 import com.sksamuel.hoplite.ConfigLoaderBuilder
@@ -9,6 +10,7 @@ import com.sksamuel.hoplite.addResourceSource
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -48,7 +50,7 @@ fun main() = runBlocking {
 
     val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
 
-    val logsBuffer = ChatLogsBuffer(grpcStub)
+    val chatLogsFlow = MutableSharedFlow<ChatLog>()
 
     val jobs = mutableListOf<Job>()
 
@@ -80,7 +82,7 @@ fun main() = runBlocking {
                 var outPacket: GamePacket? = null
                 when (val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)) {
                     is PingPacket -> { outPacket = pingProc.processPacket(packet) }
-                    is ChatLogPacket -> logsBuffer.addLog(packet)
+                    is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
                     is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
                     is LogEntryPacket -> { outPacket = logEntryProcessor(packet, grpcStub) }
                     is ResponsePacket -> cmdMgr.onReceivePacket(packet)
