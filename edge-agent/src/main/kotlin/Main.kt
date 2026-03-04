@@ -50,8 +50,8 @@ fun main() = runBlocking {
     val sslContext = GrpcSslContexts.forClient()
         .trustManager(File("CA/ca.crt")) // trust server
         .keyManager(
-            File("CA/client.crt"), // client certificate
-            File("CA/client.key")  // client private key
+            File("CA/${config.name}.crt"), // client certificate
+            File("CA/${config.name}.key")  // client private key
         )
         .build()
 

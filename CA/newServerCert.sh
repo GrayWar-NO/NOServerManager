@@ -1,5 +1,7 @@
+#!/usr/bin/env bash
+
 openssl genrsa -out central.key 2048
-openssl req -new -key central.key -out central.csr -config central.cnf
+openssl req -new -key central.key -out central.csr -config central.conf
 
 openssl x509 -req \
   -in central.csr \
@@ -10,4 +12,4 @@ openssl x509 -req \
   -days 365 \
   -sha256 \
   -extensions v3_req \
-  -extfile central.cnf
+  -extfile central.conf
