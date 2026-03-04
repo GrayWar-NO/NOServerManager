@@ -64,7 +64,9 @@ message KillLog{
   uint64 killer = 1;
   uint64 killed = 2;
   string weapon = 3;
-  google.protobuf.Timestamp time = 4;
+  string killerUnit = 4;
+  string killedUnit = 5;
+  google.protobuf.Timestamp time = 6;
 }
 
 message Ack {
@@ -81,12 +83,12 @@ service EdgeAgentService {
   // The edge agent calls this to report its status.
   rpc ReportStatus(StatusRequest) returns (StatusResponse);
   rpc SendBan(BanRequest) returns (Ack);
-  rpc SendKick(KickLog) returns (Ack); // TODO
-  rpc SendWarn(WarnLog) returns (Ack); // TODO
-  rpc SendPlayerActivity(JoinLeaveLog) returns (Ack); // TODO
-  rpc SendMissionChange(missionStatus) returns (Ack); // TODO
-  rpc SendKill(KillLog) returns (Ack); // TODO
-  rpc SentTeamKill(KillLog) returns (Ack); // TODO
+  rpc SendKick(KickLog) returns (Ack);
+  rpc SendWarn(WarnLog) returns (Ack);
+  rpc SendPlayerActivity(JoinLeaveLog) returns (Ack);
+  rpc SendMissionChange(missionStatus) returns (Ack);
+  rpc SendKill(KillLog) returns (Ack);
+  rpc SendTeamKill(KillLog) returns (Ack);
 
   rpc SendChatLogsStream(stream ChatLog) returns (Ack);
   rpc SubscribeToBans(google.protobuf.Empty) returns (stream BanRequest);

@@ -30,7 +30,7 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
     when (packet.channel) {
         LogChannel.JoinLeave -> TODO()
         LogChannel.MissionStatus -> TODO()
-        LogChannel.Warn -> TODO()
+        LogChannel.Warn -> TODO("Also need to add the recidivation warn -> kick system")
         LogChannel.Teamkill -> rtPacket = TODO()
         LogChannel.Kill -> TODO()
         LogChannel.Kick -> TODO()

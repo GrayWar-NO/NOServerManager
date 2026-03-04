@@ -88,6 +88,44 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
             .forEach { (_, channel) -> channel.trySend(request) }
         return Ack.newBuilder().setOk(true).build()
     }
+
+    override suspend fun sendKick(request: KickLog): Ack {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        // TODO send to DB
+        return Ack.newBuilder().setOk(true).build()
+    }
+
+    override suspend fun sendWarn(request: WarnLog): Ack {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        // TODO send to DB
+        return Ack.newBuilder().setOk(true).build()
+    }
+
+    override suspend fun sendPlayerActivity(request: JoinLeaveLog): Ack {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        // TODO send to DB
+        return Ack.newBuilder().setOk(true).build()
+    }
+
+    override suspend fun sendMissionChange(request: missionStatus): Ack {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        // TODO send to DB
+        return Ack.newBuilder().setOk(true).build()
+    }
+
+    override suspend fun sendKill(request: KillLog): Ack {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        // TODO send to DB
+        return Ack.newBuilder().setOk(true).build()
+    }
+
+    override suspend fun sendTeamKill(request: KillLog): Ack {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        // TODO send to DB
+        return Ack.newBuilder().setOk(true).build()
+    }
+
+
 }
 
 class AgentIdInterceptor : ServerInterceptor {
