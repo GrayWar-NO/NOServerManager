@@ -81,8 +81,8 @@ fun main() = runBlocking {
 
         banFlow.collect { ban ->
             val banCommandPacket = CommandPacket(
-                commandName = "ban",
-                arguments = listOf(ban.steamID.toString(), ban.reason),
+                commandName = if (ban.shouldBeBanned) "ban" else "unban",
+                arguments = if (ban.shouldBeBanned) listOf(ban.steamID.toString(), ban.reason) else listOf(ban.steamID.toString()),
                 result = false
             )
             cmdMgr.enqueueCommand(banCommandPacket)
