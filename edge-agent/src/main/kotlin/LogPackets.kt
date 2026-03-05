@@ -1,8 +1,7 @@
 package com.graywar.noServerManager.edge
 
 import com.google.protobuf.Timestamp
-import com.graywar.noServerManager.proto.BanRequest
-import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
+import com.graywar.noServerManager.proto.*
 import kotlinx.serialization.*
 import java.time.Instant
 
@@ -26,45 +25,115 @@ data class LogEntryPacket(
 
 suspend fun logEntryProcessor(packet: LogEntryPacket,
                               grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub){
-    when (packet.channel) {
-        LogChannel.JoinLeave -> TODO()
-        LogChannel.MissionStatus -> TODO()
-        LogChannel.Warn -> TODO()
-        LogChannel.Teamkill -> TODO()
-        LogChannel.Kill -> TODO()
-        LogChannel.Kick -> TODO()
+    val result = when (packet.channel) {
+        LogChannel.JoinLeave -> sendPlayerAct(packet, grpcStub)
+        LogChannel.MissionStatus -> sendMission(packet, grpcStub)
+        LogChannel.Warn -> sendWarn(packet, grpcStub)
+        LogChannel.Teamkill -> grpcStub.sendTeamKill(genKillLog(packet))
+        LogChannel.Kill -> grpcStub.sendKill(genKillLog(packet))
+        LogChannel.Kick -> sendKick(packet, grpcStub)
         LogChannel.Ban -> sendBan(packet, grpcStub)
     }
+    if (result == null || !result.ok) {println("[Edge] Failed processing log packet with text ${packet.logText} as ${packet.channel}")}
+}
+
+suspend fun sendPlayerAct(packet: LogEntryPacket,
+                          grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
+    val values = packet.logText.split(":")
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val request = JoinLeaveLog.newBuilder()
+        .setTime(timestampNow)
+        .setSteamID(values[1].toLong())
+        .setIsOn(values[1] == "1")
+        .build()
+    return grpcStub.sendPlayerActivity(request)
+}
+
+suspend fun sendMission(packet: LogEntryPacket,
+                        grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val request = missionStatus.newBuilder()
+        .setTime(timestampNow)
+        .setMissionName(packet.logText)
+        .build()
+    return grpcStub.sendMissionChange(request)
 }
 
 suspend fun sendBan(packet: LogEntryPacket,
-                    grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub) {
+                    grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
     if (packet.channel != LogChannel.Ban) throw Exception("Send ban failed: Packet is not a ban packet.")
     val values = packet.logText.split(':')
-    if (values.size != 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)
+    if (values.size < 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
     val timestampEnd: Timestamp?
-    if (values[4] == "") timestampEnd = null
-    else if (!(values[4].endsWith('d', true) || values[4].endsWith('h', true))) {
+    if (values[2] == "") timestampEnd = null
+    else if (!(values[2].endsWith('d', true) || values[2].endsWith('h', true))) {
         timestampEnd = null
     }
-    else if (values[4].endsWith('d', true)){
-        val nDays = values[4].removeSuffix("d").removeSuffix("D").toInt()
+    else if (values[2].endsWith('d', true)){
+        val nDays = values[2].removeSuffix("d").removeSuffix("D").toInt()
         timestampEnd = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond + (nDays * 24 * 3600)).build()
     } else {
-        val nHours = values[4].removeSuffix("h").removeSuffix("H").toInt()
+        val nHours = values[2].removeSuffix("h").removeSuffix("H").toInt()
         timestampEnd = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond + (nHours * 3600)).build()
     }
 
     val request = BanRequest.newBuilder()
         .setShouldBeBanned(values[0].toInt() != 0)
         .setSteamID(values[1].toLong())
-        .setReason(values[2])
+        .setReason(values.drop(3).joinToString(":"))
         .setBanStart(timestampNow)
         .setBanEnd(timestampEnd)
         .build()
 
-    val ack = grpcStub.sendBan(request)
-    if (!ack.ok) println("[Ban] failed: ack invalid received back from central")
+    return grpcStub.sendBan(request)
+}
 
+suspend fun sendKick(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack? {
+
+    if (packet.channel != LogChannel.Kick) throw Exception("Send Kick failed: Packet is not a kick packet.")
+    val values = packet.logText.split(':')
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    if (values[0] == "0") return null
+
+    val request = KickLog
+        .newBuilder()
+        .setTime(timestampNow)
+        .setSteamID(values[1].toLong())
+        .setReason(values.drop(2).joinToString(":"))
+        .build()
+
+    return grpcStub.sendKick(request)
+}
+
+suspend fun sendWarn(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack? {
+
+    if (packet.channel != LogChannel.Kick) throw Exception("Send Kick failed: Packet is not a warn packet.")
+    val values = packet.logText.split(':')
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    if (values[0] == "0") return null
+
+    val request = WarnLog
+        .newBuilder()
+        .setTime(timestampNow)
+        .setSteamID(values[1].toLong())
+        .setReason(values.drop(2).joinToString(":"))
+        .build()
+
+    return grpcStub.sendWarn(request)
+}
+
+fun genKillLog(packet: LogEntryPacket): KillLog{
+    // text format: "killer:killerunit:weapon:killed:killedunit"
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val values = packet.logText.split(':')
+    val request = KillLog.newBuilder()
+        .setTime(timestampNow)
+        .setKiller(values[0].toLong())
+        .setKillerUnit(values[1])
+        .setWeapon(values[2])
+        .setKilled(values[3].toLong())
+        .setKilledUnit(values[4])
+        .build()
+    return request
 }
