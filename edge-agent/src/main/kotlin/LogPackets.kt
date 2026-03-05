@@ -25,18 +25,16 @@ data class LogEntryPacket(
 ) : GamePacket()
 
 suspend fun logEntryProcessor(packet: LogEntryPacket,
-                              grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): GamePacket? {
-    var rtPacket: GamePacket? = null
+                              grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub){
     when (packet.channel) {
         LogChannel.JoinLeave -> TODO()
         LogChannel.MissionStatus -> TODO()
-        LogChannel.Warn -> TODO("Also need to add the recidivation warn -> kick system")
-        LogChannel.Teamkill -> rtPacket = TODO()
+        LogChannel.Warn -> TODO()
+        LogChannel.Teamkill -> TODO()
         LogChannel.Kill -> TODO()
         LogChannel.Kick -> TODO()
         LogChannel.Ban -> sendBan(packet, grpcStub)
     }
-    return rtPacket
 }
 
 suspend fun sendBan(packet: LogEntryPacket,

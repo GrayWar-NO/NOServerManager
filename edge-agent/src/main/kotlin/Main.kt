@@ -101,7 +101,7 @@ fun main() = runBlocking {
                     is PingPacket -> { outPacket = pingProc.processPacket(packet) }
                     is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
                     is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
-                    is LogEntryPacket -> { outPacket = logEntryProcessor(packet, grpcStub) }
+                    is LogEntryPacket -> logEntryProcessor(packet, grpcStub)
                     is ResponsePacket -> cmdMgr.onReceivePacket(packet)
                 }
                 if (outPacket != null) {
