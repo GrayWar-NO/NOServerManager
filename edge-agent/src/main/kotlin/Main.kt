@@ -6,7 +6,7 @@ import com.graywar.noServerManager.proto.ChatLog
 import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
 import com.graywar.noServerManager.proto.StatusRequest
 import com.sksamuel.hoplite.ConfigLoaderBuilder
-import com.sksamuel.hoplite.addResourceSource
+import com.sksamuel.hoplite.addFileSource
 import io.grpc.ManagedChannel
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
@@ -30,7 +30,7 @@ data class EdgeConfig (val name: String, val nuclearOption: Remote, val central:
 
 fun main() = runBlocking {
     val config = ConfigLoaderBuilder.default()
-        .addResourceSource("/edge-agent.conf")
+        .addFileSource("edge-agent.conf")
         .build()
         .loadConfigOrThrow<EdgeConfig>()
 
