@@ -16,7 +16,10 @@ dependencies {
     implementation("com.google.protobuf:protobuf-java:4.28.2")
     implementation("io.grpc:grpc-kotlin-stub:1.4.1")
     implementation("io.grpc:grpc-protobuf:1.59.0")
-    implementation("io.grpc:grpc-netty-shaded:1.75.0")}
+    implementation("io.grpc:grpc-netty-shaded:1.75.0")
+    implementation("com.sksamuel.hoplite:hoplite-core:2.9.0")
+    implementation("com.sksamuel.hoplite:hoplite-hocon:2.9.0")
+}
 
 kotlin {
     jvmToolchain(25)

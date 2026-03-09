@@ -9,6 +9,8 @@ import io.grpc.ServerCall
 import io.grpc.ServerCallHandler
 import io.grpc.ServerInterceptor
 import io.grpc.ServerInterceptors
+import com.sksamuel.hoplite.ConfigLoaderBuilder
+import com.sksamuel.hoplite.addFileSource
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.netty.shaded.io.netty.handler.ssl.ClientAuth
@@ -19,9 +21,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import java.io.File
 
-class CentralServer(private val port: Int = 50051) {
+data class Remote (val host: String, val port: Int, val pingDelay: Int)
+data class HostConfig (val port: Int, val db: Remote)
+
+
+
+class CentralServer() {
+    private val config = ConfigLoaderBuilder.default()
+        .addFileSource("central.conf")
+        .build()
+        .loadConfigOrThrow<HostConfig>()
     private val server = NettyServerBuilder
-        .forPort(port)
+        .forPort(config.port)
         .sslContext(
             GrpcSslContexts.forServer(
                 File("CA/central.crt"),
@@ -41,7 +52,7 @@ class CentralServer(private val port: Int = 50051) {
 
     fun start() = runBlocking {
         server.start()
-        println("[Central] gRPC server started on $port")
+        println("[Central] gRPC server started on ${config.port}")
         server.awaitTermination()
     }
 
@@ -55,7 +66,7 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
         println("[Central] Received status from $source")
-        // TODO You could persist the data, update a dashboard, etc.
+        // TODO Handle no status received or something idk
         return StatusResponse.newBuilder().setOk(true).build()
     }
 
