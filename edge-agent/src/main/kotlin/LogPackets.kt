@@ -129,10 +129,10 @@ fun genKillLog(packet: LogEntryPacket): KillLog{
     val values = packet.logText.split(':')
     val request = KillLog.newBuilder()
         .setTime(timestampNow)
-        .setKiller(values[0].toLong())
+        .setKiller(values[0].toLongOrNull() ?: 0)
         .setKillerUnit(values[1])
         .setWeapon(values[2])
-        .setKilled(values[3].toLong())
+        .setKilled(values[3].toLongOrNull() ?: 0)
         .setKilledUnit(values[4])
         .build()
     return request
