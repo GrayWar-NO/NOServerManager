@@ -20,7 +20,7 @@ suspend fun emitChatLog(flow: Channel<ChatLog>, chatLog: ChatLogPacket){
         .setMessage(chatLog.logText)
         .setSenderSteamID(chatLog.steamID.toLong())
         .setMessageChannel(chatLog.chatName)
-        .setMessageSendTime(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build())
+        .setMessageSendTime(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build())
         .build()
     flow.send(log)
 }

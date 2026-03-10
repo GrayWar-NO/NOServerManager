@@ -7,7 +7,6 @@ import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
 import com.graywar.noServerManager.proto.StatusRequest
 import com.sksamuel.hoplite.ConfigLoaderBuilder
 import com.sksamuel.hoplite.addFileSource
-import io.grpc.ManagedChannel
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import kotlinx.coroutines.*
@@ -145,7 +144,7 @@ fun main() = runBlocking {
             while (isActive) {
 
                 val request = StatusRequest.newBuilder()
-                    .setLastHeartbeat(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build())
+                    .setLastHeartbeat(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build())
                     .build()
 
                 try {

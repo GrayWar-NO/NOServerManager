@@ -65,7 +65,7 @@ class DB() {
         return result[Missions.id]
     }
 
-    fun getCurrentMissionIDForServer(name: String): Int {
+    fun getCurrentMissionIDForServer(name: String): Long {
         val result = transaction {
             Servers
                 .join(
@@ -77,7 +77,7 @@ class DB() {
                 .firstOrNull()
         }
         if (result == null) {throw NullPointerException("Server $name not found or has no ongoing mission.") }
-        return result[ServerMissions.mission]
+        return result[ServerMissions.id]
     }
 
     fun newServer(name: String) {

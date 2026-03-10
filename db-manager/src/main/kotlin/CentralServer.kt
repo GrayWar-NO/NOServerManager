@@ -1,6 +1,7 @@
 package com.graywar.noServerManager.dbManager
 
 import com.google.protobuf.Empty
+import com.google.protobuf.Timestamp
 import com.graywar.noServerManager.proto.*
 import io.grpc.Context
 import io.grpc.Contexts
@@ -20,6 +21,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import java.io.File
+import java.time.Instant
 
 data class HostConfig(val port: Int, val db: DataBaseConfig)
 
@@ -102,6 +104,9 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
             awaitClose {
                 println("[Central] $source disconnected")
+                db.endMission(
+                    db.getCurrentMissionIDForServer(source),
+                    Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build())
                 subscribers.remove(source)
             }
         } catch (e: Exception) {

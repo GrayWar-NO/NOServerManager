@@ -40,7 +40,7 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
 suspend fun sendPlayerAct(packet: LogEntryPacket,
                           grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
     val values = packet.logText.split(":")
-    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
     val request = JoinLeaveLog.newBuilder()
         .setTime(timestampNow)
         .setSteamID(values[1].toULong().toLong())
@@ -52,7 +52,7 @@ suspend fun sendPlayerAct(packet: LogEntryPacket,
 
 suspend fun sendMission(packet: LogEntryPacket,
                         grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
-    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
     val request = missionStatus.newBuilder()
         .setTime(timestampNow)
         .setMissionName(packet.logText)
@@ -66,7 +66,7 @@ suspend fun sendBan(packet: LogEntryPacket,
     val values = packet.logText.split(':')
     val shouldBeBanned = values[0].toInt() != 0
     if ((shouldBeBanned && values.size < 3) || values.size < 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)
-    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
     val timestampEnd: Timestamp?
     if (values[2] == "") timestampEnd = null
     else if (!(values[2].endsWith('d', true) || values[2].endsWith('h', true))) {
@@ -95,7 +95,7 @@ suspend fun sendKick(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Ed
 
     if (packet.channel != LogChannel.Kick) throw Exception("Send Kick failed: Packet is not a kick packet.")
     val values = packet.logText.split(':')
-    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
     if (values[0] == "0") return null
 
     val request = KickLog
@@ -112,7 +112,7 @@ suspend fun sendWarn(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Ed
 
     if (packet.channel != LogChannel.Kick) throw Exception("Send Kick failed: Packet is not a warn packet.")
     val values = packet.logText.split(':')
-    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
     if (values[0] == "0") return null
 
     val request = WarnLog
@@ -127,7 +127,7 @@ suspend fun sendWarn(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Ed
 
 fun genKillLog(packet: LogEntryPacket): KillLog{
     // text format: "killer:killerUnit:weapon:killed:killedUnit"
-    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
     val values = packet.logText.split(':')
     val killerID: ULong = values[0].toULongOrNull() ?: 0UL
     val killedID = values[3].toULongOrNull() ?: 0UL
