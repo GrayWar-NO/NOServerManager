@@ -23,6 +23,7 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.Socket
 import java.time.Instant
+import kotlin.time.Duration.Companion.seconds
 
 
 data class Remote (val host: String, val port: Int, val pingDelay: Int)
@@ -55,13 +56,6 @@ fun main() = runBlocking {
         )
         .build()
 
-    val channel = NettyChannelBuilder
-        .forAddress(config.central.host, config.central.port)
-        .sslContext(sslContext)
-        .build()
-
-    val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
-
     val chatLogsFlow = Channel<ChatLog>()
 
     val jobs = mutableListOf<Job>()
@@ -70,11 +64,26 @@ fun main() = runBlocking {
     cmdMgr.start()
 
     jobs.add (launch (Dispatchers.IO){
+        val channel = NettyChannelBuilder
+            .forAddress(config.central.host, config.central.port)
+            .sslContext(sslContext)
+            .build()
+
+        val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
+
         val ack = grpcStub.sendChatLogsStream(chatLogsFlow.consumeAsFlow())
         println("Server flow ok: ${ack.ok}")
+        channel.shutdownNow()
     })
 
     jobs.add( launch(Dispatchers.IO){
+        val channel = NettyChannelBuilder
+            .forAddress(config.central.host, config.central.port)
+            .sslContext(sslContext)
+            .build()
+
+        val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
+
         val banFlow = grpcStub.subscribeToBans(
             Empty.getDefaultInstance()
         )
@@ -87,10 +96,18 @@ fun main() = runBlocking {
             )
             cmdMgr.enqueueCommand(banCommandPacket)
         }
+        channel.shutdownNow()
     })
 
     jobs.add(
         launch(Dispatchers.IO) {
+            val channel = NettyChannelBuilder
+                .forAddress(config.central.host, config.central.port)
+                .sslContext(sslContext)
+                .build()
+
+            val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
+
             val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
             var line: String?
             while (reader.readLine().also { line = it } != null && isActive) {
@@ -110,6 +127,7 @@ fun main() = runBlocking {
                     writer.flush()
                 }
             }
+            channel.shutdownNow()
         }
     )
 
@@ -117,7 +135,15 @@ fun main() = runBlocking {
     // ---------- 3️⃣  Periodic status reporting ----------
     jobs.add(
         launch {
+            val channel = NettyChannelBuilder
+                .forAddress(config.central.host, config.central.port)
+                .sslContext(sslContext)
+                .build()
+
+            val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
+
             while (isActive) {
+
                 val request = StatusRequest.newBuilder()
                     .setLastHeartbeat(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build())
                     .build()
@@ -129,8 +155,9 @@ fun main() = runBlocking {
                     println("[Edge] Failed to report status: ${e.message}")
                 }
 
-                delay(1000 * config.nuclearOption.pingDelay.toLong())
+                delay(config.nuclearOption.pingDelay.toLong().seconds)
             }
+            channel.shutdownNow()
         }
     )
 
@@ -139,7 +166,7 @@ fun main() = runBlocking {
             try {
                 println("[Edge] sending ping to game")
                 if (!pingProc.sendNewPing(writer)) break
-                delay(1000 * config.central.pingDelay.toLong())
+                delay(config.central.pingDelay.toLong().seconds)
             } catch (e: Exception) {
                 println("[Edge] Ping failed: ${e.message}")
             }
@@ -150,7 +177,7 @@ fun main() = runBlocking {
 
     // ---------- 4️⃣  Graceful shutdown ----------
     Runtime.getRuntime().addShutdownHook(Thread {
-        runBlocking { cleanup(jobs, channel, socket, cmdMgr, chatLogsFlow) }
+        runBlocking { cleanup(jobs, socket, cmdMgr, chatLogsFlow) }
     })
 
     // Wait until either one of the jobs fail.
@@ -162,7 +189,6 @@ fun main() = runBlocking {
 
 private suspend fun cleanup(
     jobs: List<Job>,
-    channel: ManagedChannel,
     socket: Socket,
     cmdMgr: CommandManager,
     chatLogsFlow: Channel<ChatLog>
@@ -173,7 +199,6 @@ private suspend fun cleanup(
     }
     chatLogsFlow.close()
     cmdMgr.stop()
-    channel.shutdownNow()
     if (!socket.isClosed) withContext(Dispatchers.IO) {
         socket.close()
     }
