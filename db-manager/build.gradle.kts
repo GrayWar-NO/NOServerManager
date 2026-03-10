@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    application
 }
 
 group = "com.graywar"
@@ -7,6 +8,10 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+}
+
+application{
+    mainClass.set("com.graywar.noServerManager.dbManager.CentralServerKt")
 }
 
 dependencies {
