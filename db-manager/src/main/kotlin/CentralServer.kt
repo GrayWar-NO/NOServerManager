@@ -21,8 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import java.io.File
 
-data class HostConfig (val port: Int, val db: DataBaseConfig)
-
+data class HostConfig(val port: Int, val db: DataBaseConfig)
 
 
 class CentralServer {
@@ -63,7 +62,7 @@ class CentralServer {
     fun stop() = server.shutdownNow()!!
 }
 
-class EdgeAgentServiceImpl(private val db: DB): EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImplBase() {
+class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImplBase() {
     private val subscribers = mutableMapOf<String, SendChannel<BanRequest>>()
     private val serversToMissionIDs = mutableMapOf<String, Long>()
 
@@ -76,92 +75,138 @@ class EdgeAgentServiceImpl(private val db: DB): EdgeAgentServiceGrpcKt.EdgeAgent
 
 
     override suspend fun sendChatLogsStream(requests: Flow<ChatLog>): Ack {
-        requests.collect { request ->
-            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            db.storeMessage(
-                request.senderSteamID.toULong(),
-                request.messageSendTime,
-                request.messageChannel,
-                serversToMissionIDs[source]!!,
-                request.message)
+        try {
+            requests.collect { request ->
+                val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+                db.storeMessage(
+                    request.senderSteamID.toULong(),
+                    request.messageSendTime,
+                    request.messageChannel,
+                    serversToMissionIDs[source]!!,
+                    request.message
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
         }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override fun subscribeToBans(request: Empty): Flow<BanRequest> = channelFlow {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        println("[Central] $source subscribed to bans")
+        try {
+            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            println("[Central] $source subscribed to bans")
 
-        subscribers[source] = channel
+            subscribers[source] = channel
 
-        awaitClose {
-            println("[Central] $source disconnected")
-            subscribers.remove(source)
+            awaitClose {
+                println("[Central] $source disconnected")
+                subscribers.remove(source)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     override suspend fun sendBan(request: BanRequest): Ack {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        if (request.shouldBeBanned){
-            db.addBan(request.steamID.toULong(), request.reason, request.banStart, request.banEnd)
-        } else {
-            db.endBan(request.steamID.toULong(), request.banStart)
+        try {
+            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            if (request.shouldBeBanned) {
+                db.addBan(request.steamID.toULong(), request.reason, request.banStart, request.banEnd)
+            } else {
+                db.endBan(request.steamID.toULong(), request.banStart)
+            }
+            subscribers
+                .filterKeys { key -> key != source }
+                .forEach { (_, channel) -> channel.trySend(request) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
         }
-        subscribers
-            .filterKeys { key -> key != source }
-            .forEach { (_, channel) -> channel.trySend(request) }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendKick(request: KickLog): Ack {
-        db.addKick(request.steamID.toULong(), request.reason, request.time)
+        try {
+            db.addKick(request.steamID.toULong(), request.reason, request.time)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
+        }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendWarn(request: WarnLog): Ack {
-        db.addWarn(request.steamID.toULong(), request.reason, request.time)
+        try {
+            db.addWarn(request.steamID.toULong(), request.reason, request.time)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
+        }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendPlayerActivity(request: JoinLeaveLog): Ack {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        if (request.isOn){
-            db.playerJoin(
-                request.steamID.toULong(),
-                serversToMissionIDs[source]!!,
-                request.time
-            )
-        } else {
-            db.playerLeave(
-                request.steamID.toULong(),
-                request.score,
-                request.time
-            )
+        try {
+            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            if (request.isOn) {
+                db.playerJoin(
+                    request.steamID.toULong(),
+                    serversToMissionIDs[source]!!,
+                    request.time
+                )
+            } else {
+                db.playerLeave(
+                    request.steamID.toULong(),
+                    request.score,
+                    request.time
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
         }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendMissionChange(request: missionStatus): Ack {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        if (source in serversToMissionIDs.keys)
-            db.endMission(serversToMissionIDs[source]!!, request.time)
-        serversToMissionIDs[source] = db.startMission(
-            request.missionName,
-            request.time,
-            source
-        )
+        try {
+            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+
+            if (source in serversToMissionIDs.keys)
+                db.endMission(serversToMissionIDs[source]!!, request.time)
+            serversToMissionIDs[source] = db.startMission(
+                request.missionName,
+                request.time,
+                source
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
+        }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendKill(request: KillLog): Ack {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        db.addKill(serversToMissionIDs[source]!!, request)
+        try {
+            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            db.addKill(serversToMissionIDs[source]!!, request)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
+        }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendTeamKill(request: KillLog): Ack {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        db.addTeamKill(serversToMissionIDs[source]!!, request)
+        try {
+            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            db.addTeamKill(serversToMissionIDs[source]!!, request)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
+        }
         return Ack.newBuilder().setOk(true).build()
     }
 
