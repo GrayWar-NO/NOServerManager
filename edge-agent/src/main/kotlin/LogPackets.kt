@@ -17,7 +17,7 @@ enum class LogChannel{
 
 
 @Serializable
-@SerialName("logEntry")
+@SerialName("logentry")
 data class LogEntryPacket(
     val channel: LogChannel,
     val logText: String
