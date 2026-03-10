@@ -33,8 +33,9 @@ message BanRequest {
 
 message ChatLog{
   google.protobuf.Timestamp messageSendTime = 1;
-  string messageChannel = 2;
-  string message = 3;
+  uint64 senderSteamID = 2;
+  string messageChannel = 3;
+  string message = 4;
 }
 
 message KickLog{
@@ -52,7 +53,8 @@ message WarnLog{
 message JoinLeaveLog{
   uint64 steamID = 1;
   bool isOn = 2;
-  google.protobuf.Timestamp time = 3;
+  float score = 3;
+  google.protobuf.Timestamp time = 4;
 }
 
 message missionStatus{

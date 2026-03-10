@@ -21,16 +21,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import java.io.File
 
-data class Remote (val host: String, val port: Int, val pingDelay: Int)
-data class HostConfig (val port: Int, val db: Remote)
+data class HostConfig (val port: Int, val db: DataBaseConfig)
 
 
 
-class CentralServer() {
+class CentralServer {
     private val config = ConfigLoaderBuilder.default()
         .addFileSource("central.conf")
         .build()
         .loadConfigOrThrow<HostConfig>()
+
+    private val db = DB(config.db)
+
     private val server = NettyServerBuilder
         .forPort(config.port)
         .sslContext(
@@ -44,13 +46,14 @@ class CentralServer() {
         )
         .addService(
             ServerInterceptors.intercept(
-                EdgeAgentServiceImpl(),
+                EdgeAgentServiceImpl(db),
                 AgentIdInterceptor()
             )
         )
         .build()
 
     fun start() = runBlocking {
+        db.init()
         server.start()
         println("[Central] gRPC server started on ${config.port}")
         server.awaitTermination()
@@ -60,8 +63,9 @@ class CentralServer() {
     fun stop() = server.shutdownNow()!!
 }
 
-class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImplBase() {
+class EdgeAgentServiceImpl(private val db: DB): EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImplBase() {
     private val subscribers = mutableMapOf<String, SendChannel<BanRequest>>()
+    private val serversToMissionIDs = mutableMapOf<String, Long>()
 
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
@@ -73,8 +77,13 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
 
     override suspend fun sendChatLogsStream(requests: Flow<ChatLog>): Ack {
         requests.collect { request ->
-                println(request.message)
-                // TODO send to DB
+            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            db.storeMessage(
+                request.senderSteamID.toULong(),
+                request.messageSendTime,
+                request.messageChannel,
+                serversToMissionIDs[source]!!,
+                request.message)
         }
         return Ack.newBuilder().setOk(true).build()
     }
@@ -93,7 +102,11 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
 
     override suspend fun sendBan(request: BanRequest): Ack {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        // TODO send to DB
+        if (request.shouldBeBanned){
+            db.addBan(request.steamID.toULong(), request.reason, request.banStart, request.banEnd)
+        } else {
+            db.endBan(request.steamID.toULong(), request.banStart)
+        }
         subscribers
             .filterKeys { key -> key != source }
             .forEach { (_, channel) -> channel.trySend(request) }
@@ -101,38 +114,54 @@ class EdgeAgentServiceImpl: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImpl
     }
 
     override suspend fun sendKick(request: KickLog): Ack {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        // TODO send to DB
+        db.addKick(request.steamID.toULong(), request.reason, request.time)
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendWarn(request: WarnLog): Ack {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        // TODO send to DB
+        db.addWarn(request.steamID.toULong(), request.reason, request.time)
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendPlayerActivity(request: JoinLeaveLog): Ack {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        // TODO send to DB
+        if (request.isOn){
+            db.playerJoin(
+                request.steamID.toULong(),
+                serversToMissionIDs[source]!!,
+                request.time
+            )
+        } else {
+            db.playerLeave(
+                request.steamID.toULong(),
+                request.score,
+                request.time
+            )
+        }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendMissionChange(request: missionStatus): Ack {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        // TODO send to DB
+        if (source in serversToMissionIDs.keys)
+            db.endMission(serversToMissionIDs[source]!!, request.time)
+        serversToMissionIDs[source] = db.startMission(
+            request.missionName,
+            request.time,
+            source
+        )
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendKill(request: KillLog): Ack {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        // TODO send to DB
+        db.addKill(serversToMissionIDs[source]!!, request)
         return Ack.newBuilder().setOk(true).build()
     }
 
     override suspend fun sendTeamKill(request: KillLog): Ack {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        // TODO send to DB
+        db.addTeamKill(serversToMissionIDs[source]!!, request)
         return Ack.newBuilder().setOk(true).build()
     }
 

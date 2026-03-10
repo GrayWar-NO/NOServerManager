@@ -43,8 +43,9 @@ suspend fun sendPlayerAct(packet: LogEntryPacket,
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
     val request = JoinLeaveLog.newBuilder()
         .setTime(timestampNow)
-        .setSteamID(values[1].toLong())
-        .setIsOn(values[1] == "1")
+        .setSteamID(values[1].toULong().toLong())
+        .setIsOn(values[0] == "1")
+        .setScore(if (values.size == 3) values[2].toFloat() else 0f)
         .build()
     return grpcStub.sendPlayerActivity(request)
 }
@@ -63,7 +64,8 @@ suspend fun sendBan(packet: LogEntryPacket,
                     grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
     if (packet.channel != LogChannel.Ban) throw Exception("Send ban failed: Packet is not a ban packet.")
     val values = packet.logText.split(':')
-    if (values.size < 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)
+    val shouldBeBanned = values[0].toInt() != 0
+    if ((shouldBeBanned && values.size < 3) || values.size < 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
     val timestampEnd: Timestamp?
     if (values[2] == "") timestampEnd = null
@@ -79,9 +81,9 @@ suspend fun sendBan(packet: LogEntryPacket,
     }
 
     val request = BanRequest.newBuilder()
-        .setShouldBeBanned(values[0].toInt() != 0)
-        .setSteamID(values[1].toLong())
-        .setReason(values.drop(3).joinToString(":"))
+        .setShouldBeBanned(shouldBeBanned)
+        .setSteamID(values[1].toULong().toLong())
+        .setReason(if (shouldBeBanned) values.drop(3).joinToString(":") else null)
         .setBanStart(timestampNow)
         .setBanEnd(timestampEnd)
         .build()
@@ -99,7 +101,7 @@ suspend fun sendKick(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Ed
     val request = KickLog
         .newBuilder()
         .setTime(timestampNow)
-        .setSteamID(values[1].toLong())
+        .setSteamID(values[1].toULong().toLong())
         .setReason(values.drop(2).joinToString(":"))
         .build()
 
@@ -116,7 +118,7 @@ suspend fun sendWarn(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Ed
     val request = WarnLog
         .newBuilder()
         .setTime(timestampNow)
-        .setSteamID(values[1].toLong())
+        .setSteamID(values[1].toULong().toLong())
         .setReason(values.drop(2).joinToString(":"))
         .build()
 
@@ -124,15 +126,18 @@ suspend fun sendWarn(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Ed
 }
 
 fun genKillLog(packet: LogEntryPacket): KillLog{
-    // text format: "killer:killerunit:weapon:killed:killedunit"
+    // text format: "killer:killerUnit:weapon:killed:killedUnit"
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).build()
     val values = packet.logText.split(':')
+    val killerID: ULong = values[0].toULongOrNull() ?: 0UL
+    val killedID = values[3].toULongOrNull() ?: 0UL
+
     val request = KillLog.newBuilder()
         .setTime(timestampNow)
-        .setKiller(values[0].toLongOrNull() ?: 0)
+        .setKiller(killerID.toLong())
         .setKillerUnit(values[1])
         .setWeapon(values[2])
-        .setKilled(values[3].toLongOrNull() ?: 0)
+        .setKilled(killedID.toLong())
         .setKilledUnit(values[4])
         .build()
     return request

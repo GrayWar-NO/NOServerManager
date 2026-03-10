@@ -19,6 +19,11 @@ dependencies {
     implementation("io.grpc:grpc-netty-shaded:1.75.0")
     implementation("com.sksamuel.hoplite:hoplite-core:2.9.0")
     implementation("com.sksamuel.hoplite:hoplite-hocon:2.9.0")
+    implementation("org.jetbrains.exposed:exposed-core:1.1.1")
+    implementation("org.jetbrains.exposed:exposed-dao:1.1.1")
+    implementation("org.jetbrains.exposed:exposed-jdbc:1.1.1")
+    implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.1.1")
+    implementation("org.postgresql:postgresql:42.7.7")
 }
 
 kotlin {
