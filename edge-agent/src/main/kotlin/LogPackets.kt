@@ -41,11 +41,13 @@ suspend fun sendPlayerAct(packet: LogEntryPacket,
                           grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
     val values = packet.logText.split(":")
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
+    val isOn = values[0] == "1"
     val request = JoinLeaveLog.newBuilder()
         .setTime(timestampNow)
         .setSteamID(values[1].toULong().toLong())
-        .setIsOn(values[0] == "1")
-        .setScore(if (values.size == 3) values[2].toFloat() else 0f)
+        .setIsOn(isOn)
+        .setScore(if (!isOn) values[2].toFloat() else 0f)
+        .setName(if (isOn) values.drop(2).joinToString(":") else "")
         .build()
     return grpcStub.sendPlayerActivity(request)
 }

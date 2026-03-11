@@ -181,12 +181,13 @@ class DB() {
         }
     }
 
-    fun playerJoin(steamID: ULong, mission: Long, time: Timestamp) {
+    fun playerJoin(steamID: ULong, mission: Long, time: Timestamp, name: String) {
         transaction {
             MissionPlayers.insert {
                 it[MissionPlayers.steamID] = steamID
                 it[MissionPlayers.mission] = mission
                 it[MissionPlayers.joinTime] = transformTimestamp(time)
+                it[MissionPlayers.name] = name
             }
         }
     }

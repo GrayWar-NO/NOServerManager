@@ -162,7 +162,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                 db.playerJoin(
                     request.steamID.toULong(),
                     serversToMissionIDs[source]!!,
-                    request.time
+                    request.time,
+                    request.name
                 )
             } else {
                 db.playerLeave(

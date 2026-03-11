@@ -28,6 +28,7 @@ object ServerMissions: Table() {
 object MissionPlayers: Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
+    val name = varchar("name", 50)
     val mission = long("mission").references(ServerMissions.id)
     val joinTime = timestamp("joinTime")
     val leaveTime = timestamp("leavetime").nullable()
