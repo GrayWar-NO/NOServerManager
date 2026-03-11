@@ -115,6 +115,14 @@ class DB() {
             { it[endTime] = transformTimestamp(time) }
         }
     }
+    fun closeAllPlayers(mission: Long){
+        val currentTime = Clock.System.now()
+        transaction {
+            MissionPlayers.update({ MissionPlayers.mission eq mission and MissionPlayers.leaveTime.isNull()}) {
+                it[MissionPlayers.leaveTime] = currentTime
+            }
+        }
+    }
 
     fun startMission(name: String, time: Timestamp, serverName: String): Long {
         val serverID = getServerIdFromName(serverName)

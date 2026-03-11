@@ -104,9 +104,12 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
             awaitClose {
                 println("[Central] $source disconnected")
+                val missionId = db.getCurrentMissionIDForServer(source)
                 db.endMission(
-                    db.getCurrentMissionIDForServer(source),
-                    Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build())
+                    missionId,
+                    Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
+                )
+                db.closeAllPlayers(missionId)
                 subscribers.remove(source)
             }
         } catch (e: Exception) {
