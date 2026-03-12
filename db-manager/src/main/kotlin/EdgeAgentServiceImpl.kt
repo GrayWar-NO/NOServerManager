@@ -35,7 +35,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     override suspend fun sendChatLogsStream(requests: Flow<ChatLog>): Ack {
         try {
-            requests.collect { request ->
+            requests
+                .onCompletion {
+                    println("[Central] Agent disconnected from chat logs streaming.")
+                }
+                .collect { request ->
                 val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
                 db.storeMessage(
                     request.senderSteamID.toULong(),
@@ -58,7 +62,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
             println("[Central] $source subscribed to bans")
 
-            banSubscribers[source] = channel
+            banSubscribers.put(source, channel)?.close()
 
             awaitClose {
                 println("[Central] $source disconnected")
@@ -84,11 +88,12 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override fun subscribeToCommands(requests: Flow<CommandResult>): Flow<Command> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
         println("[Central] Agent connected: $source")
-        commandSubscribers[source] = channel
+
+        commandSubscribers.put(source, channel)?.close()
 
         requests
             .onCompletion {
-                println("[Central] Agent disconnected: $source")
+                println("[Central] Agent disconnected from commands: $source")
                 commandSubscribers.remove(source)
             }
             .collect { result ->
