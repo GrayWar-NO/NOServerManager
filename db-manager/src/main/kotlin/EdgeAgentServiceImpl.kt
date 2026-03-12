@@ -34,25 +34,19 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
 
     override suspend fun sendChatLogsStream(requests: Flow<ChatLog>): Ack {
-        try {
-            requests
-                .onCompletion {
-                    println("[Central] Agent disconnected from chat logs streaming.")
-                }
-                .collect { request ->
-                val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-                db.storeMessage(
-                    request.senderSteamID.toULong(),
-                    request.messageSendTime,
-                    request.messageChannel,
-                    serversToMissionIDs[source]!!,
-                    request.message
-                )
+        requests
+            .onCompletion {
+                println("[Central] Agent disconnected from chat logs streaming.")
             }
-        } catch (e: Exception) {
-            println("[Central] Error in sendChatLogsStream")
-            e.printStackTrace()
-            return Ack.newBuilder().setOk(false).build()
+            .collect { request ->
+            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            db.storeMessage(
+                request.senderSteamID.toULong(),
+                request.messageSendTime,
+                request.messageChannel,
+                serversToMissionIDs[source]!!,
+                request.message
+            )
         }
         return Ack.newBuilder().setOk(true).build()
     }
@@ -99,7 +93,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             .collect { result ->
                 val requestId = result.requestID
                 pendingRequests.remove(requestId)?.complete(result.result)
-            }    }
+            }
+    }
 
     suspend fun sendCommand(clientId: String, command: String, args: List<String>, result: Boolean): Deferred<String> {
         val requestId = UUID.randomUUID().toString()
