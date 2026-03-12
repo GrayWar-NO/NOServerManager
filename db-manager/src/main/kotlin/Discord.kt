@@ -7,9 +7,11 @@ import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.*
 import dev.kordex.core.extensions.publicSlashCommand
 import dev.kordex.i18n.Key
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 data class Channel(val guild: ULong, val channel: ULong)
 data class DiscordConfig(val token: String, val defaultChannel: Channel)
@@ -91,26 +93,33 @@ class CentralServerExtension(config: DataBaseConfig, val cbEdgeAgent: EdgeAgentS
     }
 }
 
-class Discord(val config: DiscordConfig, val databaseConfig: DataBaseConfig, val cbEdgeAgent: EdgeAgentServiceImpl) {
+class Discord(
+    val config: DiscordConfig,
+    val databaseConfig: DataBaseConfig,
+    val cbEdgeAgent: EdgeAgentServiceImpl,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+) {
 
-    private lateinit var botJob: Job
+    private var botJob: Job? = null
 
-    fun main() = runBlocking {
+    // start asynchronously
+    suspend fun start() {
         val bot = ExtensibleBotBuilder().apply {
             extensions {
-                add{CentralServerExtension(databaseConfig, cbEdgeAgent)}
+                add { CentralServerExtension(databaseConfig, cbEdgeAgent) }
             }
         }.build(config.token)
 
-        botJob = launch {bot.start()}
+        // Launch bot in the provided scope
+        botJob = scope.launch {
+            bot.start() // suspend, but runs in coroutine
+        }
     }
 
-    fun stop(){
-        botJob.cancel()
+    fun stop() {
+        botJob?.cancel()
     }
-
 }
-
 //fun main() {
 //    val config = ConfigLoaderBuilder.default()
 //        .addFileSource("central.conf")
