@@ -15,6 +15,7 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.onCompletion
 import java.time.Instant
 import java.util.UUID
 
@@ -45,6 +46,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                 )
             }
         } catch (e: Exception) {
+            println("[Central] Error in sendChatLogsStream")
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
         }
@@ -74,24 +76,25 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                 db.closeAllPlayers(missionId)
             }
         } catch (e: Exception) {
+            println("[Central] Error in subscribeToBans")
             e.printStackTrace()
         }
     }
 
     override fun subscribeToCommands(requests: Flow<CommandResult>): Flow<Command> = channelFlow {
-        try {
-            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        println("[Central] Agent connected: $source")
+        commandSubscribers[source] = channel
 
-            commandSubscribers[source] = channel
-
-            requests.collect { result ->
+        requests
+            .onCompletion {
+                println("[Central] Agent disconnected: $source")
+                commandSubscribers.remove(source)
+            }
+            .collect { result ->
                 val requestId = result.requestID
                 pendingRequests.remove(requestId)?.complete(result.result)
-            }
-        }catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
+            }    }
 
     suspend fun sendCommand(clientId: String, command: String, args: List<String>, result: Boolean): Deferred<String> {
         val requestId = UUID.randomUUID().toString()
