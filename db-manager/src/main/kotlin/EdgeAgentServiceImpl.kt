@@ -202,6 +202,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
             if (source in serversToMissionIDs.keys)
                 db.endMission(serversToMissionIDs[source]!!, request.time)
+            if (request.missionName == "null") return Ack.newBuilder().setOk(true).build()
             serversToMissionIDs[source] = db.startMission(
                 request.missionName,
                 request.time,

@@ -206,7 +206,8 @@ class Discord(
             }
         }.build(config.token)
 
-        // Launch bot in the provided scope
+        serverMessageExtensions.forEach { ext -> ext.startPeriodicSender() }
+
         botJob = scope.launch {
             bot.start()
         }

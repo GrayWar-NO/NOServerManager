@@ -149,7 +149,7 @@ class DB() {
         val serverID = getServerIdFromName(serverName)
         val missionID = getMissionIdFromName(name)
         if (serverID == null || missionID == null){
-            throw NullPointerException("Server $serverName not found or has no ongoing mission.")
+            throw NullPointerException("Server $serverName or mission $name not found.")
         }
         val result = transaction {
             ServerMissions.insert {
