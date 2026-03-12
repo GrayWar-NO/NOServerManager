@@ -1,5 +1,6 @@
 package com.graywar.noServerManager.dbManager
 
+import dev.kord.common.entity.Snowflake
 import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.ephemeralSlashCommand
 import dev.kordex.core.builders.ExtensibleBotBuilder
@@ -57,16 +58,23 @@ class CentralServerExtension(config: DataBaseConfig, val cbEdgeAgent: EdgeAgentS
         }
 
         publicSlashCommand {
-            name = Key("get servers")
+            name = Key("servers")
             description = Key("Gets all servers")
 
             action {
-                var contentStr = ""
-                for (row in db.getAllServers()){
-                    contentStr += "${row.key}: ${row.value}\n"
-                }
-                respond {
-                    content = contentStr
+                try {
+                    var contentStr = ""
+                    for (row in db.getAllServers()) {
+                        contentStr += "${row.key}: ${row.value}\n"
+                    }
+                    respond {
+                        content = contentStr
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    respond {
+                        content = "Failed to get servers"
+                    }
                 }
             }
         }
@@ -118,9 +126,12 @@ class Discord(
 
     private var botJob: Job? = null
 
-    // start asynchronously
     suspend fun start() {
         val bot = ExtensibleBotBuilder().apply {
+            applicationCommands { // TODO Remove; for testing only.
+                defaultGuild = Snowflake(989821370747719731)
+            }
+
             extensions {
                 add { CentralServerExtension(databaseConfig, cbEdgeAgent) }
             }
@@ -128,7 +139,7 @@ class Discord(
 
         // Launch bot in the provided scope
         botJob = scope.launch {
-            bot.start() // suspend, but runs in coroutine
+            bot.start()
         }
     }
 
@@ -136,12 +147,3 @@ class Discord(
         botJob?.cancel()
     }
 }
-//fun main() {
-//    val config = ConfigLoaderBuilder.default()
-//        .addFileSource("central.conf")
-//        .build()
-//        .loadConfigOrThrow<HostConfig>()
-//
-//    val discord = Discord(config.discord, config.db)
-//    discord.main()
-//}
