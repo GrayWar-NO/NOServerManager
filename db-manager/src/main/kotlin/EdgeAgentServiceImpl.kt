@@ -11,8 +11,8 @@ import io.grpc.ServerCallHandler
 import io.grpc.ServerInterceptor
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.onCompletion
@@ -39,43 +39,47 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                 println("[Central] Agent disconnected from chat logs streaming.")
             }
             .collect { request ->
-            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            db.storeMessage(
-                request.senderSteamID.toULong(),
-                request.messageSendTime,
-                request.messageChannel,
-                serversToMissionIDs[source]!!,
-                request.message
-            )
-        }
+                val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+                db.storeMessage(
+                    request.senderSteamID.toULong(),
+                    request.messageSendTime,
+                    request.messageChannel,
+                    serversToMissionIDs[source]!!,
+                    request.message
+                )
+            }
         return Ack.newBuilder().setOk(true).build()
     }
 
     override fun subscribeToBans(request: Empty): Flow<BanRequest> = channelFlow {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        println("[Central] $source subscribed to bans")
+
+        banSubscribers.put(source, channel)?.close()
+
         try {
-            val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            println("[Central] $source subscribed to bans")
+            awaitCancellation()
+        } finally {
+            println("[Central] $source disconnected")
+            banSubscribers.remove(source)
 
-            banSubscribers.put(source, channel)?.close()
+            val missionId = runCatching {
+                db.getCurrentMissionIDForServer(source)
+            }.getOrNull()
 
-            awaitClose {
-                println("[Central] $source disconnected")
-                banSubscribers.remove(source)
-                val missionId: Long
-                try {
-                    missionId = db.getCurrentMissionIDForServer(source)
-                } catch (_: NullPointerException) {
-                    return@awaitClose
-                }
+            if (missionId != null) {
+                val now = Instant.now()
+
                 db.endMission(
                     missionId,
-                    Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
+                    Timestamp.newBuilder()
+                        .setSeconds(now.epochSecond)
+                        .setNanos(now.nano)
+                        .build()
                 )
+
                 db.closeAllPlayers(missionId)
             }
-        } catch (e: Exception) {
-            println("[Central] Error in subscribeToBans")
-            e.printStackTrace()
         }
     }
 
