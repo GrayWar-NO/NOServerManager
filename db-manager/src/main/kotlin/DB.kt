@@ -46,6 +46,18 @@ class DB() {
         }
     }
 
+    fun getAllServers(): Map<Int, String> {
+        val result = transaction {
+            Servers.selectAll()
+        }
+        val rtMap = mutableMapOf<Int, String>()
+        for (row in result) {
+            rtMap[row[Servers.id]] = row[Servers.name]
+        }
+        return rtMap.toMap()
+    }
+
+
     fun getServerIdFromName(name: String): Int? {
         val result = transaction {
             Servers

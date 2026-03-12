@@ -56,6 +56,21 @@ class CentralServerExtension(config: DataBaseConfig, val cbEdgeAgent: EdgeAgentS
             }
         }
 
+        publicSlashCommand {
+            name = Key("get servers")
+            description = Key("Gets all servers")
+
+            action {
+                var contentStr = ""
+                for (row in db.getAllServers()){
+                    contentStr += "${row.key}: ${row.value}\n"
+                }
+                respond {
+                    content = contentStr
+                }
+            }
+        }
+
         publicSlashCommand(::ServerCommandArgs) {
             name = Key("command")
             description = Key("Send a command to a server")
