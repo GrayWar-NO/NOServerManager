@@ -8,9 +8,9 @@ import dev.kordex.core.commands.converters.impl.*
 import dev.kordex.core.extensions.publicSlashCommand
 import dev.kordex.i18n.Key
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 data class Channel(val guild: ULong, val channel: ULong)
@@ -93,11 +93,12 @@ class CentralServerExtension(config: DataBaseConfig, val cbEdgeAgent: EdgeAgentS
     }
 }
 
+@OptIn(DelicateCoroutinesApi::class)
 class Discord(
     val config: DiscordConfig,
     val databaseConfig: DataBaseConfig,
     val cbEdgeAgent: EdgeAgentServiceImpl,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope: CoroutineScope = GlobalScope
 ) {
 
     private var botJob: Job? = null

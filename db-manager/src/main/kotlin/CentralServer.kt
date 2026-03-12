@@ -22,7 +22,7 @@ class CentralServer {
 
     private val edgeAgent = EdgeAgentServiceImpl(db)
 
-    private lateinit var discord: Discord
+    private val discord = Discord(config.discord, config.db, edgeAgent)
 
     private val server = NettyServerBuilder
         .forPort(config.port)
@@ -44,8 +44,6 @@ class CentralServer {
         .build()
 
     fun start() = runBlocking {
-        discord = Discord(config.discord, config.db, edgeAgent, this)
-        db.init()
         server.start()
         discord.start()
         println("[Central] gRPC server started on ${config.port}")
