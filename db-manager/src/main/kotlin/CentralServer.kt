@@ -44,10 +44,10 @@ class CentralServer {
         .build()
 
     fun start() = runBlocking {
-        edgeAgent.setMsgCallback(discord::queueMessage)
-        edgeAgent.setTKCallback(discord.teamKillExt::sendTeamKill)
         server.start()
         discord.start()
+        edgeAgent.setMsgCallback(discord::queueMessage)
+        edgeAgent.setTKCallback(discord.teamKillExt::sendTeamKill)
         println("[Central] gRPC server started on ${config.port}")
         server.awaitTermination()
     }
