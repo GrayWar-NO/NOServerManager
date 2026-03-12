@@ -3,6 +3,8 @@ package com.graywar.noServerManager.edge
 import com.google.protobuf.Empty
 import com.google.protobuf.Timestamp
 import com.graywar.noServerManager.proto.ChatLog
+import com.graywar.noServerManager.proto.Command
+import com.graywar.noServerManager.proto.CommandResult
 import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
 import com.graywar.noServerManager.proto.StatusRequest
 import com.sksamuel.hoplite.ConfigLoaderBuilder
@@ -11,6 +13,8 @@ import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
@@ -97,6 +101,39 @@ fun main() = runBlocking {
         }
         channel.shutdownNow()
     })
+
+    jobs.add( launch(Dispatchers.IO){
+        val channel = NettyChannelBuilder
+            .forAddress(config.central.host, config.central.port)
+            .sslContext(sslContext)
+            .build()
+
+        val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
+
+        val resultFlow = MutableSharedFlow<CommandResult>(extraBufferCapacity = 100)
+        val commandFlow: Flow<Command> = grpcStub.subscribeToCommands(resultFlow)
+
+        // Collect incoming commands
+        commandFlow.collect { command ->
+            val commandPacket = CommandPacket(
+                commandName = command.name,
+                arguments = command.argumentsList,
+                result = command.result
+            )
+
+            // Enqueue/execute command
+            val response: ResponsePacket? = cmdMgr.enqueueCommand(commandPacket)
+
+            var resultBuilder = CommandResult.newBuilder()
+                .setRequestID(command.requestID)
+            if (response != null) {
+                resultBuilder = resultBuilder.setResult(response.responseText).setOk(true)
+            }
+            resultFlow.tryEmit(resultBuilder.build())
+        }
+        channel.shutdownNow()
+    }
+    )
 
     jobs.add(
         launch(Dispatchers.IO) {

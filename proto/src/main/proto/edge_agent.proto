@@ -72,6 +72,19 @@ message KillLog{
   google.protobuf.Timestamp time = 6;
 }
 
+message Command{
+  string requestID = 1;
+  string name = 2;
+  repeated string arguments = 3;
+  bool result = 4;
+}
+
+message CommandResult{
+  string requestID = 1;
+  bool ok = 2;
+  string result = 3;
+}
+
 message Ack {
   bool ok = 1;
 }
@@ -95,4 +108,5 @@ service EdgeAgentService {
 
   rpc SendChatLogsStream(stream ChatLog) returns (Ack);
   rpc SubscribeToBans(google.protobuf.Empty) returns (stream BanRequest);
+  rpc SubscribeToCommands(stream CommandResult) returns (stream Command);
 }

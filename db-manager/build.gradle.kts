@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm")
     application
+    id("dev.kordex.gradle.kordex") version "1.9.0"
 }
 
 group = "com.graywar"
@@ -29,6 +30,14 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:1.1.1")
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.1.1")
     implementation("org.postgresql:postgresql:42.7.7")
+}
+
+kordEx {
+    bot {
+        voice = false
+    }
+    ignoreIncompatibleKotlinVersion.set(true)
+    kordExVersion = null // latest
 }
 
 kotlin {

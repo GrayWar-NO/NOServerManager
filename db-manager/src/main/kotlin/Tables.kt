@@ -11,6 +11,7 @@ object Servers: Table() {
 
 object Missions: Table() {
     val id = integer("id").autoIncrement()
+    @Suppress("unused")
     val pvp = binary("pvp", 1)
     val name = varchar("name", 50)
     override val primaryKey = PrimaryKey(id)
@@ -99,4 +100,9 @@ object Messages: Table() {
 object NoTrack: Table() {
     val user = ulong("user")
     override val primaryKey = PrimaryKey(user)
+}
+
+object DiscordPlayers: Table() {
+    val steamID = ulong("steamid").uniqueIndex()
+    val discordName = varchar("discord_name", 32).uniqueIndex()
 }

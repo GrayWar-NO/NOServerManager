@@ -42,6 +42,7 @@ class DB() {
             SchemaUtils.create(Messages)
             SchemaUtils.create(NoTrack)
             SchemaUtils.create(Warns)
+            SchemaUtils.create(DiscordPlayers)
         }
     }
 
@@ -53,6 +54,16 @@ class DB() {
                 .firstOrNull() }
         if (result == null) {return null}
         return result[Servers.id]
+    }
+
+    fun getServerNameFromId(id: Int): String? {
+        val result = transaction {
+            Servers
+                .selectAll()
+                .where {Servers.id eq id }
+                .firstOrNull() }
+        if (result == null) {return null}
+        return result[Servers.name]
     }
 
     fun getMissionIdFromName(name: String): Int? {
