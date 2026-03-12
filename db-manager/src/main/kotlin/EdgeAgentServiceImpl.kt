@@ -116,7 +116,12 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         // here we’d track the deferred so we can complete it when response arrives
         pendingRequests[requestId] = deferred
 
-        commandSubscribers[clientId]?.send(request)
+        val sendChannel = commandSubscribers[clientId]
+        if (sendChannel == null) {
+            deferred.complete("The server $clientId is not online or has crashed.")
+            return deferred
+        }
+        sendChannel.send(request)
         return deferred
     }
 
