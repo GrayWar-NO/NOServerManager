@@ -101,8 +101,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             .setRequestID(requestId)
             .setName(command)
 
-        for (i in args.indices) {
-            requestBuilder = requestBuilder.setArguments(i, args[i])
+        for (arg in args) {
+            requestBuilder = requestBuilder.addArguments(arg)
         }
         val request = requestBuilder.setResult(result).build()
 

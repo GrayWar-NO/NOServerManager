@@ -25,7 +25,7 @@ class ServerCommandArgs : Arguments() {
         name = Key("command")
         description = Key("The command to run")
     }
-    val arguments by string {
+    val arguments by optionalString {
         name = Key("arguments")
         description = Key("The arguments for this command, separated by whitespace.")
     }
@@ -76,7 +76,7 @@ class CentralServerExtension(config: DataBaseConfig, val cbEdgeAgent: EdgeAgentS
                 val deferredResult = cbEdgeAgent.sendCommand(
                     serverName,
                     arguments.command,
-                    arguments.arguments.split(' '),
+                    arguments.arguments?.split(' ') ?: listOf(),
                     arguments.result ?: true)
                 if (!result){
                     respond {
