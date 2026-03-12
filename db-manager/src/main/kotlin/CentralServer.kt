@@ -44,6 +44,7 @@ class CentralServer {
         .build()
 
     fun start() = runBlocking {
+        edgeAgent.setDiscordCallback(discord::queueMessage)
         server.start()
         discord.start()
         println("[Central] gRPC server started on ${config.port}")

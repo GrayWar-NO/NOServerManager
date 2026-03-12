@@ -25,6 +25,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private val commandSubscribers = mutableMapOf<String, SendChannel<Command>>()
     private val serversToMissionIDs = mutableMapOf<String, Long>()
 
+    private var discordMessageCallback: (suspend (ChatLog, Int) -> Unit)? = null
+
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
         println("[Central] Received status from $source")
@@ -47,6 +49,9 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     serversToMissionIDs[source]!!,
                     request.message
                 )
+                val sID = db.getServerIdFromName(source) ?: 1
+
+                discordMessageCallback?.invoke(request, sID)
             }
         return Ack.newBuilder().setOk(true).build()
     }
@@ -231,6 +236,10 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
+    fun setDiscordCallback(cb: (suspend (ChatLog, Int) -> Unit)){
+        if (discordMessageCallback != null)  throw IllegalStateException("Tried to set the discord callback but it was already set.")
+        discordMessageCallback = cb
+    }
 
 }
 
