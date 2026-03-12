@@ -26,6 +26,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private val serversToMissionIDs = mutableMapOf<String, Long>()
 
     private var discordMessageCallback: (suspend (ChatLog, Int) -> Unit)? = null
+    private var discordTKCallback: (suspend (KillLog) -> Unit)? = null
 
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
@@ -237,11 +238,15 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
-    fun setDiscordCallback(cb: (suspend (ChatLog, Int) -> Unit)){
-        if (discordMessageCallback != null)  throw IllegalStateException("Tried to set the discord callback but it was already set.")
+    fun setMsgCallback(cb: (suspend (ChatLog, Int) -> Unit)){
+        if (discordMessageCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordMessageCallback = cb
     }
 
+    fun setTKCallback(cb: (suspend (KillLog) -> Unit)){
+        if (discordTKCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
+        discordTKCallback = cb
+    }
 }
 
 class AgentIdInterceptor : ServerInterceptor {

@@ -1,6 +1,7 @@
 package com.graywar.noServerManager.dbManager
 
 import com.graywar.noServerManager.proto.ChatLog
+import com.graywar.noServerManager.proto.KillLog
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.MessageChannelBehavior
 import dev.kordex.core.extensions.Extension
@@ -22,7 +23,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration.Companion.seconds
 
 data class ServerConfig(val publicChat: ULong, val privateChat: ULong)
-data class DiscordConfig(val token: String, val serverChannels: List<ServerConfig>)
+data class DiscordConfig(val token: String, val serverChannels: List<ServerConfig>, val teamKillChannel: ULong)
 
 class ServerCommandArgs : Arguments() {
     val target by string {
@@ -179,6 +180,16 @@ class BatchMessagesExtension(val config: ServerConfig): Extension() {
     }
 }
 
+class TeamKillExtension(val channel: ULong): Extension(){
+    override val name = "teamKills"
+    override suspend fun setup(){}
+    suspend fun sendTeamKill(log: KillLog){
+        val discordChannel = kord.getChannel(Snowflake(channel)) as MessageChannelBehavior
+        val content = "${log.killerUnit} teamkilled ${log.killedUnit} with ${log.weapon}"
+        discordChannel.createMessage(content)
+    }
+}
+
 @OptIn(DelicateCoroutinesApi::class)
 class Discord(
     val config: DiscordConfig,
@@ -189,11 +200,13 @@ class Discord(
 
     private var botJob: Job? = null
     private lateinit var serverMessageExtensions: List<BatchMessagesExtension>
+    lateinit var teamKillExt: TeamKillExtension
 
     suspend fun start() {
         serverMessageExtensions = config.serverChannels.map { config ->
             BatchMessagesExtension(config)
         }
+        teamKillExt = TeamKillExtension(config.teamKillChannel)
 
         val bot = ExtensibleBotBuilder().apply {
             applicationCommands { // TODO Remove; for testing only.
@@ -202,6 +215,7 @@ class Discord(
 
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
+                add { teamKillExt }
                 add { CentralServerExtension(databaseConfig, cbEdgeAgent) }
             }
         }.build(config.token)
