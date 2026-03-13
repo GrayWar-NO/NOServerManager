@@ -2,6 +2,8 @@ package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
+import dev.kord.common.entity.Snowflake
+import dev.kordex.core.checks.channelFor
 import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.optionalBoolean
 import dev.kordex.core.commands.converters.impl.optionalString
@@ -33,7 +35,11 @@ class ServerCommandArgs : Arguments() {
 }
 
 
-class CentralServerExtension(val db: DB, val cbEdgeAgent: EdgeAgentServiceImpl) : Extension() {
+class CentralServerExtension(
+    val db: DB,
+    val cbEdgeAgent: EdgeAgentServiceImpl,
+    commandChannelID: ULong) : Extension() {
+    val commandChannel = Snowflake(commandChannelID)
     override val name = "ping"
     // TODO Permissions
 
@@ -45,7 +51,7 @@ class CentralServerExtension(val db: DB, val cbEdgeAgent: EdgeAgentServiceImpl) 
 
             action {
                 respond {
-                    content = "Pong! ${user.mention}"
+                    content = "Pong!"
                 }
             }
         }
@@ -53,6 +59,10 @@ class CentralServerExtension(val db: DB, val cbEdgeAgent: EdgeAgentServiceImpl) 
         publicSlashCommand {
             name = Key("servers")
             description = Key("Gets all servers")
+
+            check {
+                if (channelFor(event)?.id == commandChannel) pass()  else fail()
+            }
 
             action {
                 try {
@@ -75,6 +85,10 @@ class CentralServerExtension(val db: DB, val cbEdgeAgent: EdgeAgentServiceImpl) 
         publicSlashCommand(::ServerCommandArgs) {
             name = Key("command")
             description = Key("Send a command to a server")
+
+            check {
+                if (channelFor(event)?.id == commandChannel) pass()  else fail()
+            }
 
             action {
                 val serverID = arguments.target.toIntOrNull()

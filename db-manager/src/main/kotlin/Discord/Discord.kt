@@ -13,7 +13,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 data class ServerConfig(val publicChat: ULong, val privateChat: ULong)
-data class DiscordConfig(val token: String, val serverChannels: List<ServerConfig>, val teamKillChannel: ULong)
+data class DiscordConfig(
+    val token: String,
+    val serverChannels: List<ServerConfig>,
+    val teamKillChannel: ULong,
+    val commandChannel: ULong
+)
 
 @OptIn(DelicateCoroutinesApi::class)
 class Discord(
@@ -44,7 +49,7 @@ class Discord(
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
                 add { teamKillExt }
-                add { CentralServerExtension(db, cbEdgeAgent) }
+                add { CentralServerExtension(db, cbEdgeAgent, config.commandChannel) }
                 add { linkExt }
             }
         }.build(config.token)
