@@ -41,8 +41,6 @@ class CentralServerExtension(
     commandChannelID: ULong) : Extension() {
     val commandChannel = Snowflake(commandChannelID)
     override val name = "ping"
-    // TODO Permissions
-
 
     override suspend fun setup() {
         ephemeralSlashCommand {
