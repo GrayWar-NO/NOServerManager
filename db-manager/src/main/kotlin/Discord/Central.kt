@@ -61,7 +61,9 @@ class CentralServerExtension(
             description = Key("Gets all servers")
 
             check {
-                if (channelFor(event)?.id == commandChannel) pass()  else fail()
+                if (channelFor(event)?.id == commandChannel) pass()  else fail(
+                    Key("You cannot execute this command in this channel. Go to ${kord.getChannel(commandChannel)?.mention}.")
+                )
             }
 
             action {
@@ -87,7 +89,9 @@ class CentralServerExtension(
             description = Key("Send a command to a server")
 
             check {
-                if (channelFor(event)?.id == commandChannel) pass()  else fail()
+                if (channelFor(event)?.id == commandChannel) pass()  else fail(
+                    Key("You cannot execute this command in this channel. Go to ${kord.getChannel(commandChannel)?.mention}.")
+                )
             }
 
             action {
