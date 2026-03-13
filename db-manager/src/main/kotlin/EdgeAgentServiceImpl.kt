@@ -27,6 +27,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     private var discordMessageCallback: (suspend (ChatLog, Int) -> Unit)? = null
     private var discordTKCallback: (suspend (KillLog) -> Unit)? = null
+    private var discordLinkCallback: (suspend (LinkUser) -> Unit)? = null
 
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
@@ -239,6 +240,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
+    override suspend fun sendLinkCode(request: LinkUser): Ack {
+        discordLinkCallback?.invoke(request)
+        return Ack.newBuilder().setOk(true).build()
+    }
+
     fun setMsgCallback(cb: (suspend (ChatLog, Int) -> Unit)){
         if (discordMessageCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordMessageCallback = cb
@@ -247,6 +253,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     fun setTKCallback(cb: (suspend (KillLog) -> Unit)){
         if (discordTKCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordTKCallback = cb
+    }
+
+    fun setLinkCallback(cb: (suspend (LinkUser) -> Unit)){
+        if (discordLinkCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
+        discordLinkCallback = cb
     }
 }
 

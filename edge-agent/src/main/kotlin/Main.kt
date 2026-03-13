@@ -132,8 +132,7 @@ fun main() = runBlocking {
             resultFlow.tryEmit(resultBuilder.build())
         }
         channel.shutdownNow()
-    }
-    )
+    })
 
     jobs.add(
         launch(Dispatchers.IO) {
@@ -156,6 +155,7 @@ fun main() = runBlocking {
                     is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
                     is LogEntryPacket -> logEntryProcessor(packet, grpcStub)
                     is ResponsePacket -> cmdMgr.onReceivePacket(packet)
+                    is LinkPacket -> sendLink(packet, grpcStub)
                 }
                 if (outPacket != null) {
                     writer.write(Json.encodeToString(outPacket))
@@ -167,8 +167,6 @@ fun main() = runBlocking {
         }
     )
 
-
-    // ---------- 3️⃣  Periodic status reporting ----------
     jobs.add(
         launch {
             val channel = NettyChannelBuilder
@@ -186,7 +184,8 @@ fun main() = runBlocking {
 
                 try {
                     val response = grpcStub.reportStatus(request)
-                    println("[Edge] Central replied: ${response.ok}")
+                    if (!response.ok) println("[Edge] Central is not ok")
+//                    println("[Edge] Central replied: ${response.ok}")
                 } catch (e: Exception) {
                     println("[Edge] Failed to report status: ${e.message}")
                 }
@@ -200,24 +199,22 @@ fun main() = runBlocking {
     jobs.add(launch(Dispatchers.IO) {
         while (isActive) {
             try {
-                println("[Edge] sending ping to game")
+//                println("[Edge] sending ping to game")
                 if (!pingProc.sendNewPing(writer)) break
                 delay(config.central.pingDelay.toLong().seconds)
             } catch (e: Exception) {
                 println("[Edge] Ping failed: ${e.message}")
             }
         }
-        println("[Edge] server stopped responding.")
-
+        println("[Edge] game stopped responding.")
     })
 
-    // ---------- 4️⃣  Graceful shutdown ----------
     Runtime.getRuntime().addShutdownHook(Thread {
         runBlocking { cleanup(jobs, socket, cmdMgr, chatLogsFlow) }
     })
 
     // Wait until either one of the jobs fail.
-    select<Unit> {
+    select {
         jobs.forEach { job ->
             job.onJoin { }
         }

@@ -38,6 +38,11 @@ message ChatLog{
   string message = 4;
 }
 
+message LinkUser{
+  uint64 senderSteamID = 1;
+  uint32 oneTimeCode = 2;
+}
+
 message KickLog{
   uint64 steamID = 1;
   string reason = 2;
@@ -105,6 +110,7 @@ service EdgeAgentService {
   rpc SendMissionChange(missionStatus) returns (Ack);
   rpc SendKill(KillLog) returns (Ack);
   rpc SendTeamKill(KillLog) returns (Ack);
+  rpc sendLinkCode(LinkUser) returns (Ack);
 
   rpc SendChatLogsStream(stream ChatLog) returns (Ack);
   rpc SubscribeToBans(google.protobuf.Empty) returns (stream BanRequest);

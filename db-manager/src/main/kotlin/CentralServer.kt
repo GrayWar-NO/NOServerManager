@@ -1,5 +1,7 @@
 package com.graywar.noServerManager.dbManager
 
+import com.graywar.noServerManager.dbManager.Discord.Discord
+import com.graywar.noServerManager.dbManager.Discord.DiscordConfig
 import io.grpc.ServerInterceptors
 import com.sksamuel.hoplite.ConfigLoaderBuilder
 import com.sksamuel.hoplite.addFileSource
@@ -48,6 +50,7 @@ class CentralServer {
         discord.start()
         edgeAgent.setMsgCallback(discord::queueMessage)
         edgeAgent.setTKCallback(discord.teamKillExt::sendTeamKill)
+        edgeAgent.setLinkCallback(discord.linkExt::newLink)
         println("[Central] gRPC server started on ${config.port}")
         server.awaitTermination()
     }

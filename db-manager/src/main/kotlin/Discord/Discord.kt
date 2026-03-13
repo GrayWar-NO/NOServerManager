@@ -1,5 +1,8 @@
 package com.graywar.noServerManager.dbManager.Discord
 
+import com.graywar.noServerManager.dbManager.DB
+import com.graywar.noServerManager.dbManager.DataBaseConfig
+import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
 import com.graywar.noServerManager.proto.ChatLog
 import dev.kord.common.entity.Snowflake
 import dev.kordex.core.builders.ExtensibleBotBuilder
@@ -15,19 +18,23 @@ data class DiscordConfig(val token: String, val serverChannels: List<ServerConfi
 @OptIn(DelicateCoroutinesApi::class)
 class Discord(
     val config: DiscordConfig,
-    val databaseConfig: DataBaseConfig,
+    databaseConfig: DataBaseConfig,
     val cbEdgeAgent: EdgeAgentServiceImpl,
     private val scope: CoroutineScope = GlobalScope
 ) {
     private var botJob: Job? = null
     private lateinit var serverMessageExtensions: List<BatchMessagesExtension>
     lateinit var teamKillExt: TeamKillExtension
+    lateinit var linkExt: LinkMeExtension
+    private val db = DB(databaseConfig)
 
     suspend fun start() {
+        db.connect()
         serverMessageExtensions = config.serverChannels.map { config ->
             BatchMessagesExtension(config)
         }
         teamKillExt = TeamKillExtension(config.teamKillChannel)
+        linkExt = LinkMeExtension(db)
 
         val bot = ExtensibleBotBuilder().apply {
             applicationCommands { // TODO Remove; for testing only.
@@ -37,7 +44,8 @@ class Discord(
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
                 add { teamKillExt }
-                add { CentralServerExtension(databaseConfig, cbEdgeAgent) }
+                add { CentralServerExtension(db, cbEdgeAgent) }
+                add { linkExt }
             }
         }.build(config.token)
 

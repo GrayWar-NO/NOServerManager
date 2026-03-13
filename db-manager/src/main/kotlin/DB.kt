@@ -252,4 +252,13 @@ class DB() {
         }
     }
 
+    fun addLink(steamID: ULong, discordID: String){
+        transaction {
+            DiscordPlayers.insert {
+                it[DiscordPlayers.steamID] = steamID
+                it[DiscordPlayers.discordName] = discordID
+            }
+        }
+    }
+
 }
