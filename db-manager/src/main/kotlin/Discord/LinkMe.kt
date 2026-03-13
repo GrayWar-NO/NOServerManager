@@ -28,6 +28,10 @@ class LinkMeExtension(val db: DB): Extension() {
             description = Key("Links your discord to your in-game stats. Use /linkme in-game first!")
 
             action {
+                if (db.isUserInDb(user.id.toString())){
+                    respond { content = "Your discord was already linked. You cannot do it again." }
+                    return@action
+                }
                 if (!codesToSteamIDs.keys.contains(arguments.code)) {
                     respond {
                         content = "The code ${arguments.code} you have given was not registered. Use /linkme in-game first!"

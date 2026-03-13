@@ -261,4 +261,13 @@ class DB() {
         }
     }
 
+    fun isUserInDb(discordID: String): Boolean{
+        val result = transaction {
+            DiscordPlayers.selectAll().where {
+                DiscordPlayers.discordName eq discordID
+            }.count()
+        }
+        return (result == 1L)
+    }
+
 }
