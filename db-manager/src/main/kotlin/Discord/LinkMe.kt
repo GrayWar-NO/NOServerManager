@@ -36,6 +36,7 @@ class LinkMeExtension(val db: DB): Extension() {
                 }
                 val steamID = codesToSteamIDs[arguments.code]!!
                 db.addLink(steamID, user.id.toString())
+                codesToSteamIDs.remove(arguments.code)
                 respond {
                     content = "Your in-game stats have been linked sucessfully!"
                 }
