@@ -231,6 +231,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
             db.addTeamKill(serversToMissionIDs[source]!!, request)
+            discordTKCallback?.invoke(request)
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
