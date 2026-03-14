@@ -42,10 +42,6 @@ class Discord(
         linkExt = LinkMeExtension(db)
 
         val bot = ExtensibleBotBuilder().apply {
-            applicationCommands { // TODO Remove; for testing only.
-                defaultGuild = Snowflake(989821370747719731)
-            }
-
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
                 add { teamKillExt }

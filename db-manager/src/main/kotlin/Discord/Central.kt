@@ -33,8 +33,15 @@ class ServerCommandArgs : Arguments() {
         name = Key("result")
         description = Key("Do you need the result from this command? (default: true)")
     }
-
 }
+
+class CreateServerCommandArgs : Arguments() {
+    val name by string {
+        name = Key("name")
+        description = Key("Name of the server")
+    }
+}
+
 
 suspend fun CheckContext<*>.requireAnyRole(vararg roles: Snowflake) {
     val member = userFor(event)?.asMemberOrNull(guildFor(event)?.id ?: return fail(Key("Guild only command")))
@@ -129,6 +136,20 @@ class CentralServerExtension(
                 respond {
                     content = deferredResult.await()
                 }
+            }
+        }
+
+        ephemeralSlashCommand(::CreateServerCommandArgs) {
+            name = Key("newServer")
+            description = Key("Creates a new server from name IN THE DATABASE (doesnt actually run any new server)")
+
+            check {
+                requireAnyRole(*adminRoles.toTypedArray())
+            }
+
+            action {
+                db.newServer(arguments.name)
+                respond { content = "Created server ${arguments.name} in the database!" }
             }
         }
     }
