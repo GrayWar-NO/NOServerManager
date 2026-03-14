@@ -7,6 +7,7 @@ import dev.kordex.core.checks.guildFor
 import dev.kordex.core.checks.types.CheckContext
 import dev.kordex.core.checks.userFor
 import dev.kordex.core.commands.Arguments
+import dev.kordex.core.commands.converters.impl.boolean
 import dev.kordex.core.commands.converters.impl.optionalBoolean
 import dev.kordex.core.commands.converters.impl.optionalString
 import dev.kordex.core.commands.converters.impl.string
@@ -40,6 +41,19 @@ class CreateServerCommandArgs : Arguments() {
         name = Key("name")
         description = Key("Name of the server")
     }
+}
+
+class CreateMissionCommandArgs : Arguments() {
+    val name by string {
+        name = Key("name")
+        description = Key("Name of the mission")
+    }
+
+    val pvp by boolean {
+        name = Key("pvp")
+        description = Key("Set to true if the mission you're adding is PVP.")
+    }
+
 }
 
 
@@ -150,6 +164,20 @@ class CentralServerExtension(
             action {
                 db.newServer(arguments.name)
                 respond { content = "Created server ${arguments.name} in the database!" }
+            }
+        }
+
+        ephemeralSlashCommand(::CreateMissionCommandArgs) {
+            name = Key("newMission")
+            description = Key("Creates a new mission from name IN THE DATABASE (doesnt actually add the mission)")
+
+            check {
+                requireAnyRole(*adminRoles.toTypedArray())
+            }
+
+            action {
+                db.newMission(arguments.name, arguments.pvp)
+                respond { content = "Created mission ${arguments.name} in the database!" }
             }
         }
     }

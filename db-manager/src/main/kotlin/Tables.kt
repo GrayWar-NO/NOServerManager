@@ -11,8 +11,7 @@ object Servers: Table() {
 
 object Missions: Table() {
     val id = integer("id").autoIncrement()
-    @Suppress("unused")
-    val pvp = binary("pvp", 1)
+    val pvp = bool("pvp")
     val name = varchar("name", 50)
     override val primaryKey = PrimaryKey(id)
 }

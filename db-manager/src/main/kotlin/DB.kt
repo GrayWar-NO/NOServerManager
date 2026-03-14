@@ -133,6 +133,15 @@ class DB() {
         }
     }
 
+    fun newMission(name: String, pvp: Boolean){
+        transaction {
+            Missions.insert {
+                it[Missions.name] = name
+                it[Missions.pvp] = pvp
+            }
+        }
+    }
+
     fun endMission(mission: Long, time: Timestamp) {
         transaction {
             ServerMissions.update ({ ServerMissions.id eq mission })
