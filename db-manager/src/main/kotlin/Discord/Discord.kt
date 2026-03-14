@@ -17,7 +17,7 @@ data class DiscordConfig(
     val token: String,
     val serverChannels: List<ServerConfig>,
     val teamKillChannel: ULong,
-    val commandChannel: ULong
+    val adminRoles: List<ULong>
 )
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -49,7 +49,7 @@ class Discord(
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
                 add { teamKillExt }
-                add { CentralServerExtension(db, cbEdgeAgent, config.commandChannel) }
+                add { CentralServerExtension(db, cbEdgeAgent, config.adminRoles) }
                 add { linkExt }
             }
         }.build(config.token)

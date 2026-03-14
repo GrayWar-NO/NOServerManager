@@ -3,7 +3,9 @@ package com.graywar.noServerManager.dbManager.Discord
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
 import dev.kord.common.entity.Snowflake
-import dev.kordex.core.checks.channelFor
+import dev.kordex.core.checks.guildFor
+import dev.kordex.core.checks.types.CheckContext
+import dev.kordex.core.checks.userFor
 import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.optionalBoolean
 import dev.kordex.core.commands.converters.impl.optionalString
@@ -34,12 +36,23 @@ class ServerCommandArgs : Arguments() {
 
 }
 
+suspend fun CheckContext<*>.requireAnyRole(vararg roles: Snowflake) {
+    val member = userFor(event)?.asMemberOrNull(guildFor(event)?.id ?: return fail(Key("Guild only command")))
+
+    val memberRoleIds = member?.roleIds ?: emptyList()
+
+    val hasRole = roles.any { it in memberRoleIds }
+
+    if (!hasRole) {
+        fail(Key("You don't have permission to use this command."))
+    }
+}
 
 class CentralServerExtension(
     val db: DB,
     val cbEdgeAgent: EdgeAgentServiceImpl,
-    commandChannelID: ULong) : Extension() {
-    val commandChannel = Snowflake(commandChannelID)
+    adminRoleIDs: List<ULong>) : Extension() {
+    val adminRoles = adminRoleIDs.map { id -> Snowflake(id) }
     override val name = "ping"
 
     override suspend fun setup() {
@@ -59,9 +72,7 @@ class CentralServerExtension(
             description = Key("Gets all servers")
 
             check {
-                if (channelFor(event)?.id == commandChannel) pass()  else fail(
-                    Key("You cannot execute this command in this channel. Go to ${kord.getChannel(commandChannel)?.mention}.")
-                )
+                requireAnyRole(*adminRoles.toTypedArray())
             }
 
             action {
@@ -87,9 +98,7 @@ class CentralServerExtension(
             description = Key("Send a command to a server")
 
             check {
-                if (channelFor(event)?.id == commandChannel) pass()  else fail(
-                    Key("You cannot execute this command in this channel. Go to ${kord.getChannel(commandChannel)?.mention}.")
-                )
+                requireAnyRole(*adminRoles.toTypedArray())
             }
 
             action {
