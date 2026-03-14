@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 
 data class ServerConfig(val publicChat: ULong, val privateChat: ULong)
 data class DiscordConfig(
+    val enable: Boolean,
     val token: String,
     val serverChannels: List<ServerConfig>,
     val teamKillChannel: ULong,
@@ -34,7 +35,6 @@ class Discord(
     private val db = DB(databaseConfig)
 
     suspend fun start() {
-        db.connect()
         serverMessageExtensions = config.serverChannels.map { config ->
             BatchMessagesExtension(config)
         }

@@ -25,10 +25,12 @@ class DB() {
         this.config = config
         this.url = "jdbc:postgresql://${config.host}:${config.port}/${config.name}"
         connect()
+        init()
     }
 
     fun connect() {
-        Database.connect(url, "org.postgresql.Driver", user = "pauel") }
+        Database.connect(url, "org.postgresql.Driver", user = "pauel")
+    }
 
     fun init() { // To use only once to create the db.
         transaction {
