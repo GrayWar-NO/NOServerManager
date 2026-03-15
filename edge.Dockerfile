@@ -14,4 +14,4 @@ RUN apt-get update && apt-get install -y curl \
     && rm /tmp/dockerize-linux-amd64.tar.gz \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*   
-ENTRYPOINT ["dockerize", "-wait", "tcp://no.server.internal:10042", "-timeout", "60s", "bin/edge-agent"]
+ENTRYPOINT ["dockerize", "-wait", "tcp://nuclear-option-server-compose:10042", "-timeout", "60s", "bin/edge-agent"]

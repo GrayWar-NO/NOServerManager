@@ -112,7 +112,7 @@ suspend fun sendKick(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Ed
 
 suspend fun sendWarn(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack? {
 
-    if (packet.channel != LogChannel.Kick) throw Exception("Send Kick failed: Packet is not a warn packet.")
+    if (packet.channel != LogChannel.Warn) throw Exception("Send Warn failed: Packet is not a warn packet.")
     val values = packet.logText.split(':')
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
     if (values[0] == "0") return null
