@@ -35,7 +35,7 @@ class Discord(
 
     suspend fun start() {
         serverMessageExtensions = config.serverChannels.map { config ->
-            BatchMessagesExtension(config)
+            BatchMessagesExtension(config, db)
         }
         teamKillExt = TeamKillExtension(config.teamKillChannel)
         linkExt = LinkMeExtension(db)

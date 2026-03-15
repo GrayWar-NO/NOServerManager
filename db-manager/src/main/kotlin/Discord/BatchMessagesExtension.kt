@@ -1,5 +1,6 @@
 package com.graywar.noServerManager.dbManager.Discord
 
+import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.proto.ChatLog
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.MessageChannelBehavior
@@ -14,7 +15,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration.Companion.seconds
 
-class BatchMessagesExtension(val config: ServerConfig): Extension() {
+class BatchMessagesExtension(val config: ServerConfig, val db: DB): Extension() {
     override val name: String = "batch-messages"
 
     private val publicMessageQueue = mutableListOf<String>()
@@ -24,12 +25,13 @@ class BatchMessagesExtension(val config: ServerConfig): Extension() {
     private val privateQueueMutex = Mutex()
 
     suspend fun enqueueMessage(message: ChatLog){
+        val userName = db.getLastPlayerName(message.senderSteamID.toULong())
         privateQueueMutex.withLock {
-            privateMessageQueue.add("`${message.senderSteamID} sent message in ${message.messageChannel} chat: ${message.message}`")
+            privateMessageQueue.add("`${userName} sent message in ${message.messageChannel} chat: ${message.message}`")
         }
         if (message.messageChannel == "all"){
             publicQueueMutex.withLock {
-                publicMessageQueue.add("`${message.senderSteamID} sent message: ${message.message}`")
+                publicMessageQueue.add("`${userName} sent message: ${message.message}`")
             }
         }
     }
