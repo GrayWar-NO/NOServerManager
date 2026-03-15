@@ -304,11 +304,12 @@ class DB() {
         }
     }
 
-    fun getKillsForUser(steamID: ULong, pageNumber: Int, pageLength: Int = 10): Pair<List<Kill>, Boolean> {
+    fun getKillsForUser(steamID: ULong, pageNumber: Int, pageLength: Int = 10, playerOnly: Boolean = false): Pair<List<Kill>, Boolean> {
+        val condition = if (playerOnly) (Kills.killerID eq steamID) and Kills.killedID.isNotNull() else Kills.killerID eq steamID
         val result = transaction {
             Kills
                 .select(Kills.killedID, Kills.killedName, Kills.weapon)
-                .where { Kills.killerID eq steamID }
+                .where { condition }
                 .orderBy(Kills.time to SortOrder.DESC)
                 .offset((pageNumber * pageLength).toLong())
                 .limit(pageLength + 1)
