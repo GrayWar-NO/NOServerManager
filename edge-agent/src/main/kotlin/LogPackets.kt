@@ -120,8 +120,8 @@ suspend fun sendWarn(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.Ed
     val request = WarnLog
         .newBuilder()
         .setTime(timestampNow)
-        .setSteamID(values[1].toULong().toLong())
-        .setReason(values.drop(2).joinToString(":"))
+        .setSteamID(values[0].toULong().toLong())
+        .setReason(values.drop(1).joinToString(":"))
         .build()
 
     return grpcStub.sendWarn(request)
