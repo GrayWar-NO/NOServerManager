@@ -45,7 +45,6 @@ class LinkMeExtension(val db: DB): Extension() {
                     content = "Your in-game stats have been linked sucessfully!"
                 }
             }
-
         }
     }
 

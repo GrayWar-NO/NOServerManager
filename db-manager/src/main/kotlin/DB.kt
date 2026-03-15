@@ -1,6 +1,7 @@
 package com.graywar.noServerManager.dbManager
 
 import com.google.protobuf.Timestamp
+import com.graywar.noServerManager.dbManager.Discord.Kill
 import com.graywar.noServerManager.proto.KillLog
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -293,4 +294,52 @@ class DB() {
         }
         return (result ?: "")
     }
+
+    fun getSteamIDForDiscord(discordID: String): ULong?{
+        return transaction {
+            DiscordPlayers
+                .select(DiscordPlayers.steamID)
+                .where { DiscordPlayers.discordName eq discordID }
+                .firstOrNull()?.get(DiscordPlayers.steamID)
+        }
+    }
+
+    fun getKillsForUser(steamID: ULong, pageNumber: Int, pageLength: Int = 10): Pair<List<Kill>, Boolean> {
+        val result = transaction {
+            Kills
+                .select(Kills.killedID, Kills.killedName, Kills.weapon)
+                .where { Kills.killerID eq steamID }
+                .orderBy(Kills.time to SortOrder.DESC)
+                .offset((pageNumber * pageLength).toLong())
+                .limit(pageLength + 1)
+                .toList()
+        }
+        val kills = result.map { kill ->
+            val playerId = kill[Kills.killedID]
+            val playerName = if (playerId != null) getLastPlayerName(playerId) else null
+            Kill(playerName, kill[Kills.weapon]!!, kill[Kills.killedName], isAircraft(kill[Kills.killedName]))
+        }
+        val hasNext = kills.size > pageLength
+        return Pair(kills.take(pageLength), hasNext)
+    }
+
+    fun getDeathsForUser(steamID: ULong, pageNumber: Int, pageLength: Int = 10): Pair<List<Kill>, Boolean> {
+        val result = transaction{
+            Kills
+                .select(Kills.killerID, Kills.killerName, Kills.weapon)
+                .where { Kills.killedID eq steamID }
+                .orderBy(Kills.time to SortOrder.DESC)
+                .offset((pageNumber * pageLength).toLong())
+                .limit(pageLength + 1)
+                .toList()
+        }
+        val kills = result.map { kill ->
+            val playerId = kill[Kills.killerID]
+            val playerName = if (playerId != null) getLastPlayerName(playerId) else null
+            Kill(playerName, kill[Kills.weapon] ?: "the ground", kill[Kills.killerName] ?: "a crash", true)
+        }
+        val hasNext = kills.size > pageLength
+        return Pair(kills.take(pageLength), hasNext)
+    }
+
 }

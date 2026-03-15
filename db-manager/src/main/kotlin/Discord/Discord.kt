@@ -4,7 +4,6 @@ import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.DataBaseConfig
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
 import com.graywar.noServerManager.proto.ChatLog
-import dev.kord.common.entity.Snowflake
 import dev.kordex.core.builders.ExtensibleBotBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -47,6 +46,7 @@ class Discord(
                 add { teamKillExt }
                 add { CentralServerExtension(db, cbEdgeAgent, config.adminRoles) }
                 add { linkExt }
+                add { StatsExtension(db) }
             }
         }.build(config.token)
 

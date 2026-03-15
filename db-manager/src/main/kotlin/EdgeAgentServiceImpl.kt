@@ -30,8 +30,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private var discordLinkCallback: (suspend (LinkUser) -> Unit)? = null
 
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
-        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        println("[Central] Received status from $source")
+//        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+//        println("[Central] Received status from $source")
         // TODO Handle no status received or something idk
         return StatusResponse.newBuilder().setOk(true).build()
     }

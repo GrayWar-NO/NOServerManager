@@ -65,8 +65,9 @@ suspend fun CheckContext<*>.requireAnyRole(vararg roles: Snowflake) {
     val hasRole = roles.any { it in memberRoleIds }
 
     if (!hasRole) {
-        fail(Key("You don't have permission to use this command."))
+        return fail(Key("You don't have permission to use this command."))
     }
+    return pass()
 }
 
 class CentralServerExtension(
