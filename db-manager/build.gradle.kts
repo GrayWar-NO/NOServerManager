@@ -30,6 +30,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:1.1.1")
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.1.1")
     implementation("org.postgresql:postgresql:42.7.7")
+    implementation("org.knowm.xchart:xchart:3.8.6")
 }
 
 kordEx {

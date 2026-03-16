@@ -343,4 +343,48 @@ class DB() {
         return Pair(kills.take(pageLength), hasNext)
     }
 
+    fun getWeaponsToKillsForUser(steamID: ULong, aircraftOnly: Boolean = false, playerOnly: Boolean = false): Map<String, Long>{
+        var condition = Kills.killerID eq steamID
+        if (aircraftOnly){
+            condition = condition and (Kills.killedName inList Aircraft.entries.map { it.craft })
+        }
+        if (playerOnly) {
+            condition = condition and (Kills.killedID.isNotNull())
+        }
+        val countExpr = Kills.weapon.count()
+        return transaction {
+            Kills
+                .select(Kills.weapon, countExpr)
+                .where { condition }
+                .groupBy(Kills.weapon)
+                .associate {
+                    it[Kills.weapon] to it[countExpr]
+                }
+                .filterKeys { it != null }
+                .mapKeys { it.key!! }
+        }
+    }
+
+    fun getTargetsToKillsForUser(steamID: ULong, aircraftOnly: Boolean = false, playerOnly: Boolean = false): Map<String, Long>{
+        var condition = Kills.killerID eq steamID
+        if (aircraftOnly){
+            condition = condition and (Kills.killedName inList Aircraft.entries.map { it.craft })
+        }
+        if (playerOnly) {
+            condition = condition and (Kills.killedID.isNotNull())
+        }
+        val countExpr = Kills.killedName.count()
+        return transaction {
+            Kills
+                .select(Kills.killedName, countExpr)
+                .where {condition}
+                .groupBy(Kills.killedName)
+                .associate {
+                    it[Kills.killedName] to it[countExpr]
+                }
+                .mapKeys { it.key }
+        }
+    }
+
+
 }
