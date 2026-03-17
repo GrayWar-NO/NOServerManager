@@ -217,6 +217,22 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
+    override suspend fun sendSortieChange(request: sortieStatus): Ack {
+        try{
+            if (request.start){
+                db.startSortie(request.steamID.toULong(), request.planeName, request.time)
+            }
+            else
+            {
+                db.endSortie(request.steamID.toULong(), request.killed, request.time)
+            }
+        }catch (e: Exception) {
+            e.printStackTrace()
+            return Ack.newBuilder().setOk(false).build()
+        }
+        return Ack.newBuilder().setOk(true).build()
+    }
+
     override suspend fun sendKill(request: KillLog): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()

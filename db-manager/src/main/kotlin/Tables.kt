@@ -36,6 +36,16 @@ object MissionPlayers: Table() {
     override val primaryKey = PrimaryKey(id)
 }
 
+object Sorties: Table(){
+    val id = long("id").autoIncrement()
+    val steamID = ulong("steamid")
+    val aircraft = varchar("aircraft", 50)
+    val startTime = timestamp("startTime")
+    val endTime = timestamp("endtime").nullable()
+    val killed = bool("killed").nullable()
+    override val primaryKey = PrimaryKey(id)
+}
+
 object Bans: Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")

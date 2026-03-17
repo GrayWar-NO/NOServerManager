@@ -8,6 +8,7 @@ import java.time.Instant
 enum class LogChannel{
     JoinLeave,
     MissionStatus,
+    SortieStatus,
     Teamkill,
     Kill,
     Kick,
@@ -28,6 +29,7 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
     val result = when (packet.channel) {
         LogChannel.JoinLeave -> sendPlayerAct(packet, grpcStub)
         LogChannel.MissionStatus -> sendMission(packet, grpcStub)
+        LogChannel.SortieStatus -> sendSortie(packet, grpcStub)
         LogChannel.Warn -> sendWarn(packet, grpcStub)
         LogChannel.Teamkill -> grpcStub.sendTeamKill(genKillLog(packet))
         LogChannel.Kill -> grpcStub.sendKill(genKillLog(packet))
@@ -60,6 +62,26 @@ suspend fun sendMission(packet: LogEntryPacket,
         .setMissionName(packet.logText)
         .build()
     return grpcStub.sendMissionChange(request)
+}
+
+suspend fun sendSortie(packet: LogEntryPacket,
+                       grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
+    val values = packet.logText.split(":")
+    if (values[0].toInt() == 0){
+        println("[Edge] player with steamID ${values[1]} ${if (values[2].toInt() == 0) "was killed" else "left their airframe"}")
+    } else{
+        println("[Edge] player with steamID ${values[1]} entered airframe ${values[2]}")
+    }
+    val packet = sortieStatus.newBuilder()
+        .setSteamID(values[1].toULong().toLong())
+        .setStart(values[0].toInt() == 1)
+        .setTime(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build())
+    if (packet.start){
+        packet.setPlaneName(values[2])
+    } else {
+        packet.setKilled(values[2].toInt() == 0)
+    }
+    return grpcStub.sendSortieChange(packet.build())
 }
 
 suspend fun sendBan(packet: LogEntryPacket,

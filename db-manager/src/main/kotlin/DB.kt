@@ -33,11 +33,12 @@ class DB() {
         Database.connect(url, "org.postgresql.Driver", user = "pauel")
     }
 
-    fun init() { // To use only once to create the db.
+    fun init() {
         transaction {
             SchemaUtils.create(Servers)
             SchemaUtils.create(Missions)
             SchemaUtils.create(ServerMissions)
+            SchemaUtils.create(Sorties)
             SchemaUtils.create(MissionPlayers)
             SchemaUtils.create(Bans)
             SchemaUtils.create(Kicks)
@@ -149,6 +150,7 @@ class DB() {
             { it[endTime] = transformTimestamp(time) }
         }
     }
+
     fun closeAllPlayers(mission: Long){
         val currentTime = Clock.System.now()
         transaction {
@@ -172,6 +174,25 @@ class DB() {
             } get ServerMissions.id
         }
         return result
+    }
+
+    fun startSortie(steamID: ULong, aircraft: String, time: Timestamp): Long{
+        return transaction {
+            Sorties.insert {
+                it[Sorties.steamID] = steamID
+                it[Sorties.aircraft] = aircraft
+                it[startTime] = transformTimestamp(time)
+            } get Sorties.id
+        }
+    }
+
+    fun endSortie(steamID: ULong, killed: Boolean, time: Timestamp){
+        transaction {
+            Sorties.update({ Sorties.steamID eq steamID and Sorties.endTime.isNull() }){
+                it[endTime] = transformTimestamp(time)
+                it[Sorties.killed] = killed
+            }
+        }
     }
 
     fun addBan(steamID: ULong, reason: String, startTime: Timestamp, endTime: Timestamp ) {

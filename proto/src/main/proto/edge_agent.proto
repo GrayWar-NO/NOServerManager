@@ -68,6 +68,14 @@ message missionStatus{
   google.protobuf.Timestamp time = 2;
 }
 
+message sortieStatus{
+  uint64 steamID = 1;
+  bool start = 2;
+  string planeName = 3;
+  bool killed = 4;
+  google.protobuf.Timestamp time = 5;
+}
+
 message KillLog{
   uint64 killer = 1;
   uint64 killed = 2;
@@ -101,13 +109,13 @@ message Ack {
 // ---------------------------------------------------------------------
 
 service EdgeAgentService {
-  // The edge agent calls this to report its status.
   rpc ReportStatus(StatusRequest) returns (StatusResponse);
   rpc SendBan(BanRequest) returns (Ack);
   rpc SendKick(KickLog) returns (Ack);
   rpc SendWarn(WarnLog) returns (Ack);
   rpc SendPlayerActivity(JoinLeaveLog) returns (Ack);
   rpc SendMissionChange(missionStatus) returns (Ack);
+  rpc SendSortieChange(sortieStatus) returns (Ack);
   rpc SendKill(KillLog) returns (Ack);
   rpc SendTeamKill(KillLog) returns (Ack);
   rpc sendLinkCode(LinkUser) returns (Ack);
