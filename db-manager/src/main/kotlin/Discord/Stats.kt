@@ -219,6 +219,20 @@ class StatsExtension(val db: DB) : Extension() {
                     }
                 }
             }
+            ephemeralSubCommand {
+                name = Key("KD")
+                description = Key("Your kill/death ratio")
+                action {
+                    val (steamID, linked) = checkUserLinked()
+                    if (!linked) return@action
+                    val kd = db.getKDForPlayer(steamID)
+                    respond{
+                        embed{
+                            title = "Your K/D ratio is $kd."
+                        }
+                    }
+                }
+            }
         }
 
     }
@@ -331,11 +345,7 @@ fun generatePieChart(input: Map<String, Long>): ByteArray {
 fun groupSmallSlices(
     data: Map<String, Long>,
     maxSlices: Int = 13,
-    minPercent: Double = 0.03
 ): Map<String, Long> {
-
-    val total = data.values.sum().toDouble()
-
     val sorted = data.entries
         .sortedByDescending { it.value }
 
@@ -343,18 +353,14 @@ fun groupSmallSlices(
     var other = 0L
 
     sorted.forEachIndexed { index, entry ->
-        val percent = entry.value / total
-
-        if (index < maxSlices && percent >= minPercent) {
+        if (index < maxSlices) {
             result[entry.key] = entry.value
         } else {
             other += entry.value
         }
     }
-
     if (other > 0) {
         result["Other"] = other
     }
-
     return result
 }

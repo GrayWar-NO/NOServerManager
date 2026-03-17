@@ -386,5 +386,22 @@ class DB() {
         }
     }
 
+    fun getKDForPlayer(steamID: ULong): Double{
+        val kills: Long = transaction {
+            Kills
+                .selectAll()
+                .where { Kills.killerID eq steamID and Kills.killedID.isNotNull()}
+                .count()
+        }
+        val deaths: Long = transaction{
+            Kills
+                .selectAll()
+                .where { Kills.killedID eq steamID and Kills.killerID.isNotNull()}
+                .count()
+        }
+        return kills.toDouble()/deaths.toDouble()
+    }
+
+
 
 }
