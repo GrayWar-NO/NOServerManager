@@ -16,7 +16,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
-data class DataBaseConfig (val host: String, val port: Int, val name: String)
+data class DataBaseConfig (val host: String, val port: Int, val name: String, val user: String, val password: String)
 
 class DB() {
     private lateinit var config: DataBaseConfig
@@ -30,7 +30,7 @@ class DB() {
     }
 
     fun connect() {
-        Database.connect(url, "org.postgresql.Driver", user = "pauel")
+        Database.connect(url, "org.postgresql.Driver", user = config.user, password = config.password)
     }
 
     fun init() {
