@@ -3,7 +3,7 @@ package com.graywar.noServerManager.edge
 import com.google.protobuf.Timestamp
 import kotlinx.serialization.*
 import com.graywar.noServerManager.proto.ChatLog
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import java.time.Instant
 
 @Serializable
@@ -14,7 +14,7 @@ data class ChatLogPacket(
     val steamID: ULong
 ) : GamePacket()
 
-suspend fun emitChatLog(flow: Channel<ChatLog>, chatLog: ChatLogPacket){
+suspend fun emitChatLog(flow: MutableSharedFlow<ChatLog>, chatLog: ChatLogPacket){
     val log = ChatLog
         .newBuilder()
         .setMessage(chatLog.logText)
@@ -22,5 +22,5 @@ suspend fun emitChatLog(flow: Channel<ChatLog>, chatLog: ChatLogPacket){
         .setMessageChannel(chatLog.chatName)
         .setMessageSendTime(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build())
         .build()
-    flow.send(log)
+    flow.emit(log)
 }

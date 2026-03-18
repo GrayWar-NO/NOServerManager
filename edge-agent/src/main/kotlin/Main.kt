@@ -9,13 +9,12 @@ import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
 import com.graywar.noServerManager.proto.StatusRequest
 import com.sksamuel.hoplite.ConfigLoaderBuilder
 import com.sksamuel.hoplite.addFileSource
+import io.grpc.ManagedChannel
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -50,7 +49,6 @@ fun main() = runBlocking {
         classDiscriminator = "type"
     }
 
-    // ---------- 2️⃣  gRPC channel to central manager ----------
     val sslContext = GrpcSslContexts.forClient()
         .trustManager(File("CA/ca.crt")) // trust server
         .keyManager(
@@ -59,7 +57,14 @@ fun main() = runBlocking {
         )
         .build()
 
-    val chatLogsFlow = Channel<ChatLog>()
+    val channel = NettyChannelBuilder
+        .forAddress(config.central.host, config.central.port)
+        .sslContext(sslContext)
+        .build()
+
+    val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
+
+    val chatLogsFlow = MutableSharedFlow<ChatLog>()
 
     val jobs = mutableListOf<Job>()
 
@@ -67,115 +72,88 @@ fun main() = runBlocking {
     cmdMgr.start()
 
     jobs.add (launch (Dispatchers.IO){
-        val channel = NettyChannelBuilder
-            .forAddress(config.central.host, config.central.port)
-            .sslContext(sslContext)
-            .build()
-
-        val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
-
-        val ack = grpcStub.sendChatLogsStream(chatLogsFlow.consumeAsFlow())
-        println("Server flow ok: ${ack.ok}")
-        channel.shutdownNow()
+        retryWithBackoff {
+            val ack = grpcStub.sendChatLogsStream(chatLogsFlow)
+            println("Server flow ok: ${ack.ok}")
+        }
     })
 
     jobs.add( launch(Dispatchers.IO){
-        val channel = NettyChannelBuilder
-            .forAddress(config.central.host, config.central.port)
-            .sslContext(sslContext)
-            .build()
-
-        val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
-
-        val banFlow = grpcStub.subscribeToBans(
-            Empty.getDefaultInstance()
-        )
-
-        banFlow.collect { ban ->
-            val banCommandPacket = CommandPacket(
-                commandName = if (ban.shouldBeBanned) "ban" else "unban",
-                arguments = if (ban.shouldBeBanned) listOf(ban.steamID.toString(), ban.reason) else listOf(ban.steamID.toString()),
-                result = false
+        retryWithBackoff {
+            val banFlow = grpcStub.subscribeToBans(
+                Empty.getDefaultInstance()
             )
-            cmdMgr.enqueueCommand(banCommandPacket)
+
+            banFlow.collect { ban ->
+                val banCommandPacket = CommandPacket(
+                    commandName = if (ban.shouldBeBanned) "ban" else "unban",
+                    arguments = if (ban.shouldBeBanned) listOf(
+                        ban.steamID.toString(),
+                        ban.reason
+                    ) else listOf(ban.steamID.toString()),
+                    result = false
+                )
+                cmdMgr.enqueueCommand(banCommandPacket)
+            }
         }
-        channel.shutdownNow()
     })
 
     jobs.add( launch(Dispatchers.IO){
-        val channel = NettyChannelBuilder
-            .forAddress(config.central.host, config.central.port)
-            .sslContext(sslContext)
-            .build()
+        retryWithBackoff {
+            val resultFlow = MutableSharedFlow<CommandResult>(extraBufferCapacity = 100)
+            val commandFlow: Flow<Command> = grpcStub.subscribeToCommands(resultFlow)
 
-        val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
+            // Collect incoming commands
+            commandFlow.collect { command ->
+                val commandPacket = CommandPacket(
+                    commandName = command.name,
+                    arguments = command.argumentsList,
+                    result = command.result
+                )
 
-        val resultFlow = MutableSharedFlow<CommandResult>(extraBufferCapacity = 100)
-        val commandFlow: Flow<Command> = grpcStub.subscribeToCommands(resultFlow)
+                // Enqueue/execute command
+                val response: ResponsePacket? = cmdMgr.enqueueCommand(commandPacket)
 
-        // Collect incoming commands
-        commandFlow.collect { command ->
-            val commandPacket = CommandPacket(
-                commandName = command.name,
-                arguments = command.argumentsList,
-                result = command.result
-            )
-
-            // Enqueue/execute command
-            val response: ResponsePacket? = cmdMgr.enqueueCommand(commandPacket)
-
-            var resultBuilder = CommandResult.newBuilder()
-                .setRequestID(command.requestID)
-            if (response != null) {
-                resultBuilder = resultBuilder.setResult(response.responseText).setOk(true)
+                var resultBuilder = CommandResult.newBuilder()
+                    .setRequestID(command.requestID)
+                if (response != null) {
+                    resultBuilder = resultBuilder.setResult(response.responseText).setOk(true)
+                }
+                resultFlow.tryEmit(resultBuilder.build())
             }
-            resultFlow.tryEmit(resultBuilder.build())
         }
-        channel.shutdownNow()
     })
 
-    jobs.add(
-        launch(Dispatchers.IO) {
-            val channel = NettyChannelBuilder
-                .forAddress(config.central.host, config.central.port)
-                .sslContext(sslContext)
-                .build()
+    jobs.add(launch(Dispatchers.IO) {
+            retryWithBackoff {
+                    val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null && isActive) {
+                        println("[Edge] Game says $line")
+                        if (line == null) continue
+                        var outPacket: GamePacket? = null
+                        when (val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)) {
+                            is PingPacket -> {
+                                outPacket = pingProc.processPacket(packet)
+                            }
 
-            val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
-
-            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-            var line: String?
-            while (reader.readLine().also { line = it } != null && isActive) {
-                println("[Edge] Game says $line")
-                if (line == null) continue
-                var outPacket: GamePacket? = null
-                when (val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)) {
-                    is PingPacket -> { outPacket = pingProc.processPacket(packet) }
-                    is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
-                    is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
-                    is LogEntryPacket -> logEntryProcessor(packet, grpcStub)
-                    is ResponsePacket -> cmdMgr.onReceivePacket(packet)
-                    is LinkPacket -> sendLink(packet, grpcStub)
-                }
-                if (outPacket != null) {
-                    writer.write(Json.encodeToString(outPacket))
-                    writer.newLine()
-                    writer.flush()
-                }
+                            is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
+                            is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
+                            is LogEntryPacket -> logEntryProcessor(packet, grpcStub)
+                            is ResponsePacket -> cmdMgr.onReceivePacket(packet)
+                            is LinkPacket -> sendLink(packet, grpcStub)
+                        }
+                        if (outPacket != null) {
+                            writer.write(Json.encodeToString(outPacket))
+                            writer.newLine()
+                            writer.flush()
+                        }
+                    }
             }
-            channel.shutdownNow()
-        }
-    )
+        })
 
     jobs.add(
         launch {
-            val channel = NettyChannelBuilder
-                .forAddress(config.central.host, config.central.port)
-                .sslContext(sslContext)
-                .build()
-
-            val grpcStub = EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub(channel)
-
             while (isActive) {
 
                 val request = StatusRequest.newBuilder()
@@ -189,10 +167,8 @@ fun main() = runBlocking {
                 } catch (e: Exception) {
                     println("[Edge] Failed to report status: ${e.message}")
                 }
-
                 delay(config.nuclearOption.pingDelay.toLong().seconds)
             }
-            channel.shutdownNow()
         }
     )
 
@@ -210,7 +186,7 @@ fun main() = runBlocking {
     })
 
     Runtime.getRuntime().addShutdownHook(Thread {
-        runBlocking { cleanup(jobs, socket, cmdMgr, chatLogsFlow) }
+        runBlocking { cleanup(jobs, socket, channel, cmdMgr) }
     })
 
     // Wait until either one of the jobs fail.
@@ -223,16 +199,38 @@ fun main() = runBlocking {
 private suspend fun cleanup(
     jobs: List<Job>,
     socket: Socket,
-    cmdMgr: CommandManager,
-    chatLogsFlow: Channel<ChatLog>
+    channel: ManagedChannel,
+    cmdMgr: CommandManager
 ) {
     println("[Edge] Shutting down…")
     for (job in jobs) {
         job.cancelAndJoin()
     }
-    chatLogsFlow.close()
     cmdMgr.stop()
     if (!socket.isClosed) withContext(Dispatchers.IO) {
         socket.close()
     }
+    channel.shutdownNow()
+}
+
+suspend fun <T> retryWithBackoff(
+    initialDelay: Int = 1,
+    maxDelay: Int = 60,
+    factor: Double = 2.0,
+    block: suspend () -> T
+): T {
+    var currentDelay = initialDelay
+
+    while (currentCoroutineContext().isActive) {
+        try {
+            return block()
+        } catch (e: CancellationException){
+            throw e
+        } catch (e: Exception) {
+            println("Retrying in $currentDelay seconds after error: ${e.message}")
+        }
+        delay(currentDelay.seconds)
+        currentDelay = (currentDelay * factor).toInt().coerceAtMost(maxDelay)
+    }
+    throw CancellationException("Coroutine was cancelled")
 }
