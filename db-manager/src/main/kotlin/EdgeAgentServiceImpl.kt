@@ -48,7 +48,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     request.senderSteamID.toULong(),
                     request.messageSendTime,
                     request.messageChannel,
-                    serversToMissionIDs[source]!!,
+                    serversToMissionIDs[source] ?: 1,
                     request.message
                 )
                 val sID = db.getServerIdFromName(source) ?: 1
@@ -180,7 +180,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             if (request.isOn) {
                 db.playerJoin(
                     request.steamID.toULong(),
-                    serversToMissionIDs[source]!!,
+                    serversToMissionIDs[source]?: 1,
                     request.time,
                     request.name
                 )
@@ -203,7 +203,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
 
             if (source in serversToMissionIDs.keys)
-                db.endMission(serversToMissionIDs[source]!!, request.time)
+                db.endMission(serversToMissionIDs[source] ?: 1, request.time)
             if (request.missionName == "null") return Ack.newBuilder().setOk(true).build()
             serversToMissionIDs[source] = db.startMission(
                 request.missionName,
@@ -236,7 +236,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendKill(request: KillLog): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            db.addKill(serversToMissionIDs[source]!!, request)
+            db.addKill(serversToMissionIDs[source] ?: 1, request)
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -247,7 +247,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendTeamKill(request: KillLog): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            db.addTeamKill(serversToMissionIDs[source]!!, request)
+            db.addTeamKill(serversToMissionIDs[source] ?: 1, request)
             discordTKCallback?.invoke(request, db.getLastPlayerName(request.killer.toULong()))
         } catch (e: Exception) {
             e.printStackTrace()

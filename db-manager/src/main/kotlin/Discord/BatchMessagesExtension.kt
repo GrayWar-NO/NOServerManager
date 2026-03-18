@@ -31,7 +31,7 @@ class BatchMessagesExtension(val config: ServerConfig, val db: DB): Extension() 
         }
         if (message.messageChannel == "all"){
             publicQueueMutex.withLock {
-                publicMessageQueue.add("`${userName} sent message: ${message.message}`")
+                publicMessageQueue.add("```${userName} sent message: ${message.message}```")
             }
         }
     }
@@ -64,7 +64,12 @@ class BatchMessagesExtension(val config: ServerConfig, val db: DB): Extension() 
             }
         }
         if (consolidated != null)  {
-            channel.createMessage(consolidated)
+            try {
+                channel.createMessage(consolidated)
+            } catch (e: Exception) {
+                println("Failed to send message to channel ${channel.id}: ${e.message}")
+                e.printStackTrace()
+            }
         }
     }
 
