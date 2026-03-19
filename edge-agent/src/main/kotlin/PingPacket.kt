@@ -2,12 +2,12 @@ package com.graywar.noServerManager.edge
 
 import kotlinx.serialization.*
 import kotlinx.serialization.json.Json
-import java.io.Writer
+import java.io.BufferedWriter
 
 @Serializable
-@SerialName("Ping")
+@SerialName("ping")
 data class PingPacket(
-    val Data: String,
+    val data: String,
 ) : GamePacket()
 
 class PingPacketProcessor
@@ -26,14 +26,15 @@ class PingPacketProcessor
     }
 
 
-    fun sendNewPing(writer: Writer): Boolean{
+    fun sendNewPing(writer: BufferedWriter): Boolean{
         if (pingPacketOutbound) {
             pingOk = false
             return false
         }
         pingPacketOutbound = true
-        val packet: GamePacket = PingPacket(Data="COCK")
-        writer.write(json.encodeToString(packet) + "\n")
+        val packet: GamePacket = PingPacket(data="TEST")
+        writer.write(json.encodeToString(packet))
+        writer.newLine()
         writer.flush()
         return true
     }
