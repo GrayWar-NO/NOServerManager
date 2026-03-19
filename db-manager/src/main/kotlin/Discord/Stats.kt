@@ -26,6 +26,7 @@ data class Kill(val name: String?, val weapon: String, val unit: String, val isA
 
 class StatsExtension(val db: DB) : Extension() {
     override val name = "Stats"
+    //TODO stats for sorties
 
     override suspend fun setup() {
         ephemeralSlashCommand {
@@ -62,7 +63,10 @@ class StatsExtension(val db: DB) : Extension() {
                     var pageNumber = 0
                     var result = db.getDeathsForUser(steamID, pageNumber)
                     respond {
-                        embed { deathsList(result.first, pageNumber) }
+                        embed {
+                            title = "Your deaths:"
+                            killsList(result.first, pageNumber)
+                        }
                         components {
                             ephemeralButton {
                                 label = Key("Previous page")
@@ -70,7 +74,10 @@ class StatsExtension(val db: DB) : Extension() {
                                 action {
                                     pageNumber--
                                     result = db.getDeathsForUser(steamID, pageNumber)
-                                    edit { embed { deathsList(result.first, pageNumber) } }
+                                    edit { embed {
+                                        title = "Your deaths:"
+                                        killsList(result.first, pageNumber)
+                                    } }
                                 }
                             }
                             ephemeralButton {
@@ -79,7 +86,10 @@ class StatsExtension(val db: DB) : Extension() {
                                 action {
                                     pageNumber++
                                     result = db.getDeathsForUser(steamID, pageNumber)
-                                    edit { embed { deathsList(result.first, pageNumber) } }
+                                    edit { embed {
+                                        title = "Your deaths:"
+                                        killsList(result.first, pageNumber)
+                                    } }
                                 }
                             }
                         }
@@ -239,25 +249,12 @@ class StatsExtension(val db: DB) : Extension() {
 
 
     fun EmbedBuilder.killsList(result: List<Kill>, pageNumber: Int) {
-        title = "Your kills: "
         var content = ""
         for (i in result.indices) {
                 content += if (result[i].name == null) {
                     "${i + (pageNumber * 10)}:${if (result[i].isAircraft) " AI" else ""} ${result[i].unit} with ${result[i].weapon}"
                 } else "${i + (pageNumber * 10)}: ${result[i].name} in ${result[i].unit} with ${result[i].weapon}"
                 content += "\n"
-        }
-        description = content
-    }
-
-    fun EmbedBuilder.deathsList(result: List<Kill>, pageNumber: Int) {
-        title = "Your deaths: "
-        var content = ""
-        for (i in result.indices) {
-            content += if (result[i].name == null) {
-                "${i + (pageNumber * 10)}:${if (result[i].isAircraft) " AI" else ""} ${result[i].unit} with ${result[i].weapon}"
-            } else "${i + (pageNumber * 10)}: ${result[i].name} in ${result[i].unit} with ${result[i].weapon}"
-            content += "\n"
         }
         description = content
     }
@@ -288,7 +285,10 @@ class StatsExtension(val db: DB) : Extension() {
         var pageNumber = 0
         var result = db.getKillsForUser(steamID, pageNumber, playerOnly = !all)
         respond {
-            embed { killsList(result.first, pageNumber) }
+            embed {
+                title = "Your kills:"
+                killsList(result.first, pageNumber)
+            }
             components {
                 ephemeralButton {
                     label = Key("Previous page")
@@ -296,7 +296,10 @@ class StatsExtension(val db: DB) : Extension() {
                     action {
                         pageNumber--
                         result = db.getKillsForUser(steamID, pageNumber, playerOnly = !all)
-                        edit { embed { killsList(result.first, pageNumber) } }
+                        edit { embed {
+                            title = "Your kills:"
+                            killsList(result.first, pageNumber)
+                        } }
                     }
                 }
                 ephemeralButton {
@@ -305,7 +308,10 @@ class StatsExtension(val db: DB) : Extension() {
                     action {
                         pageNumber++
                         result = db.getKillsForUser(steamID, pageNumber, playerOnly = !all)
-                        edit { embed { killsList(result.first, pageNumber) } }
+                        edit { embed {
+                            title = "Your kills:"
+                            killsList(result.first, pageNumber)
+                        } }
                     }
                 }
             }
