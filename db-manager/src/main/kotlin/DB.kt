@@ -358,7 +358,10 @@ class DB() {
         val kills = result.map { kill ->
             val playerId = kill[Kills.killerID]
             val playerName = if (playerId != null) getLastPlayerName(playerId) else null
-            Kill(playerName, kill[Kills.weapon] ?: "the ground", kill[Kills.killerName] ?: "a crash", true)
+            Kill(playerName,
+                kill[Kills.weapon] ?: "the ground",
+                kill[Kills.killerName] ?: "A crash",
+                isAircraft(kill[Kills.weapon] ?: "the ground"))
         }
         val hasNext = kills.size > pageLength
         return Pair(kills.take(pageLength), hasNext)
@@ -422,7 +425,4 @@ class DB() {
         }
         return kills.toDouble()/deaths.toDouble()
     }
-
-
-
 }

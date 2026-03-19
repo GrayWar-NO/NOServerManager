@@ -243,7 +243,7 @@ class StatsExtension(val db: DB) : Extension() {
         var content = ""
         for (i in result.indices) {
                 content += if (result[i].name == null) {
-                    "${i + (pageNumber * 10)}: ${result[i].unit} with ${result[i].weapon}"
+                    "${i + (pageNumber * 10)}:${if (result[i].isAircraft) " AI" else ""} ${result[i].unit} with ${result[i].weapon}"
                 } else "${i + (pageNumber * 10)}: ${result[i].name} in ${result[i].unit} with ${result[i].weapon}"
                 content += "\n"
         }
