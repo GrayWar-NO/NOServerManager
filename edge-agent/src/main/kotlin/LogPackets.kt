@@ -67,11 +67,6 @@ suspend fun sendMission(packet: LogEntryPacket,
 suspend fun sendSortie(packet: LogEntryPacket,
                        grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
     val values = packet.logText.split(":")
-    if (values[0].toInt() == 0){
-        println("[Edge] player with steamID ${values[1]} ${if (values[2].toInt() == 0) "was killed" else "left their airframe"}")
-    } else{
-        println("[Edge] player with steamID ${values[1]} entered airframe ${values[2]}")
-    }
     val packet = sortieStatus.newBuilder()
         .setSteamID(values[1].toULong().toLong())
         .setStart(values[0].toInt() == 1)
