@@ -1,7 +1,6 @@
 package com.graywar.noServerManager.dbManager
 
 import com.google.protobuf.Timestamp
-import com.graywar.noServerManager.dbManager.Discord.Kill
 import com.graywar.noServerManager.proto.KillLog
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -13,10 +12,14 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 data class DataBaseConfig (val host: String, val port: Int, val name: String, val user: String, val password: String)
+
+data class Kill(val name: String?, val weapon: String, val unit: String, val isAircraft: Boolean)
+data class Sortie(val aircraft: Aircraft, val start: Instant, val elapsed: Duration, val died: Boolean)
 
 class DB() {
     private lateinit var config: DataBaseConfig
@@ -145,6 +148,7 @@ class DB() {
     }
 
     fun endMission(mission: Long, time: Timestamp) {
+        endAllSorties(time)
         transaction {
             ServerMissions.update ({ ServerMissions.id eq mission })
             { it[endTime] = transformTimestamp(time) }
@@ -191,6 +195,15 @@ class DB() {
             Sorties.update({ Sorties.steamID eq steamID and Sorties.endTime.isNull() }){
                 it[endTime] = transformTimestamp(time)
                 it[Sorties.killed] = killed
+            }
+        }
+    }
+
+    fun endAllSorties(time: Timestamp){
+        transaction {
+            Sorties.update({ Sorties.endTime.isNull()}) {
+                it[endTime] = transformTimestamp(time)
+                it[Sorties.killed] = false
             }
         }
     }
@@ -365,6 +378,30 @@ class DB() {
         }
         val hasNext = kills.size > pageLength
         return Pair(kills.take(pageLength), hasNext)
+    }
+
+    fun getSortiesForUser(steamID: ULong, pageNumber: Int, pageLength: Int = 10): Pair<List<Sortie>, Boolean> {
+        val result = transaction {
+            Sorties
+                .selectAll()
+                .where { Sorties.steamID eq steamID }
+                .orderBy(Sorties.startTime to SortOrder.DESC)
+                .offset((pageNumber * pageLength).toLong())
+                .limit(pageLength + 1)
+                .toList()
+        }
+        val sorties = result.map { sortie ->
+            val elapsed: Duration = (sortie[Sorties.endTime] ?: Clock.System.now()).minus(sortie[Sorties.startTime])
+
+            Sortie(
+                toAircraft(sortie[Sorties.aircraft]),
+                sortie[Sorties.startTime],
+                elapsed,
+                sortie[Sorties.killed] ?: false
+                )
+        }
+        val hasNext = sorties.size > pageLength
+        return Pair(emptyList(), hasNext)
     }
 
     fun getWeaponsToKillsForUser(steamID: ULong, aircraftOnly: Boolean = false, playerOnly: Boolean = false): Map<String, Long>{

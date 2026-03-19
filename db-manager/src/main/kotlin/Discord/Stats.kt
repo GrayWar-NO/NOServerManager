@@ -1,6 +1,8 @@
 package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.dbManager.DB
+import com.graywar.noServerManager.dbManager.Kill
+import com.graywar.noServerManager.dbManager.Sortie
 import dev.kord.rest.builder.message.EmbedBuilder
 import dev.kord.rest.builder.message.embed
 import dev.kordex.core.commands.Arguments
@@ -21,12 +23,9 @@ import java.awt.Color
 import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
-data class Kill(val name: String?, val weapon: String, val unit: String, val isAircraft: Boolean)
-
 
 class StatsExtension(val db: DB) : Extension() {
     override val name = "Stats"
-    //TODO stats for sorties
 
     override suspend fun setup() {
         ephemeralSlashCommand {
@@ -47,6 +46,50 @@ class StatsExtension(val db: DB) : Extension() {
                     description = Key("Get all instances of you killing a player")
                     action {
                         getUserKills(false)
+                    }
+                }
+
+                ephemeralSubCommand {
+                    name = Key("sorties")
+                    description = Key("Get your sortie history")
+                    action {
+                        val (steamID, linked) = checkUserLinked()
+                        if (!linked) return@action
+                        var pageNumber = 0
+                        var result = db.getSortiesForUser(steamID, pageNumber)
+                        respond {
+                            embed {
+                                title = "Your kills:"
+                                sortiesList(result.first, pageNumber)
+                            }
+                            components {
+                                ephemeralButton {
+                                    label = Key("Previous page")
+                                    check { if (pageNumber > 0) pass() else fail(Key("No previous page available")) }
+                                    action {
+                                        pageNumber--
+                                        result = db.getSortiesForUser(steamID, pageNumber)
+                                        edit { embed {
+                                            title = "Your kills:"
+                                            sortiesList(result.first, pageNumber)
+                                        } }
+                                    }
+                                }
+                                ephemeralButton {
+                                    label = Key("Next page")
+                                    check { if (result.second) pass() else fail(Key("No next page available")) }
+                                    action {
+                                        pageNumber++
+                                        result = db.getSortiesForUser(steamID, pageNumber)
+                                        edit { embed {
+                                            title = "Your kills:"
+                                            sortiesList(result.first, pageNumber)
+                                        } }
+                                    }
+                                }
+                            }
+                        }
+
                     }
                 }
 
@@ -255,6 +298,16 @@ class StatsExtension(val db: DB) : Extension() {
                     "${i + (pageNumber * 10)}:${if (result[i].isAircraft) " AI" else ""} ${result[i].unit} with ${result[i].weapon}"
                 } else "${i + (pageNumber * 10)}: ${result[i].name} in ${result[i].unit} with ${result[i].weapon}"
                 content += "\n"
+        }
+        description = content
+    }
+
+    fun EmbedBuilder.sortiesList(result: List<Sortie>, pageNumber: Int) {
+        var content = ""
+        for ((i, sortie) in result.withIndex()) {
+            content += "${i + (pageNumber * 10)}: ${sortie.aircraft} sortie started on <t:${sortie.start.epochSeconds}:d> at <t:${sortie.start.epochSeconds}:t> for ${sortie.elapsed}.\n"
+            content += if (sortie.died) "You died in this sortie"  else "You got home in this sortie"
+            content += "\n"
         }
         description = content
     }
