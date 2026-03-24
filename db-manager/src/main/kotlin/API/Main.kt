@@ -22,7 +22,7 @@ data class ApiConfig(
 )
 
 data class SteamConfig(
-    val callbackPath: String // e.g. /auth/steam/callback
+    val callbackPath: String
 ) {
     fun returnUrl(baseUrl: String): String = baseUrl.trimEnd('/') + callbackPath
     fun realm(baseUrl: String): String = baseUrl.trimEnd('/')
@@ -66,7 +66,7 @@ fun createModule(gwApi: GwApi): Application.() -> Unit ={
 }
 
 class GwApi(val config: ApiConfig) {
-    val httpClient = HttpClient(CIO) // Ktor client
+    val httpClient = HttpClient(CIO)
 
     fun registerRoutes(routing: Routing) {
         val returnUrl = config.steam.returnUrl(config.baseUrl)
@@ -127,12 +127,10 @@ class GwApi(val config: ApiConfig) {
 
         routing.authenticate("auth-jwt") {
             get("/me") {
-                get("/me") {
                     val principal = call.principal<JWTPrincipal>()!!
                     val steamId = principal.payload.getClaim("steamId").asString()
 
                     call.respond(mapOf("steamId" to steamId))
-                }
             }
         }
     }
@@ -148,6 +146,3 @@ class GwApi(val config: ApiConfig) {
             .sign(com.auth0.jwt.algorithms.Algorithm.HMAC256(config.jwt.secret))
     }
 }
-
-
-

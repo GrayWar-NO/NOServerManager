@@ -339,7 +339,7 @@ class DB() {
     }
 
     fun getKillsForUser(steamID: ULong, pageNumber: Int, pageLength: Int = 10, playerOnly: Boolean = false): Pair<List<Kill>, Boolean> {
-        val condition = if (playerOnly) (Kills.killerID eq steamID) and Kills.killedID.isNotNull() else Kills.killerID eq steamID
+        val condition = if (playerOnly) (Kills.killerID eq steamID) and (Kills.killedName inList Aircraft.entries.map{ it.craft }) else Kills.killerID eq steamID
         val result = transaction {
             Kills
                 .select(Kills.killedID, Kills.killedName, Kills.weapon)
@@ -362,7 +362,7 @@ class DB() {
         val result = transaction{
             Kills
                 .select(Kills.killerID, Kills.killerName, Kills.weapon)
-                .where { Kills.killedID eq steamID }
+                .where { Kills.killedID eq steamID and (Kills.killedName inList Aircraft.entries.map { it.craft })}
                 .orderBy(Kills.time to SortOrder.DESC)
                 .offset((pageNumber * pageLength).toLong())
                 .limit(pageLength + 1)
@@ -406,7 +406,7 @@ class DB() {
 
     fun getWeaponsToKillsForUser(steamID: ULong, aircraftOnly: Boolean = false, playerOnly: Boolean = false): Map<String, Long>{
         var condition = Kills.killerID eq steamID
-        if (aircraftOnly){
+        if (aircraftOnly || playerOnly){
             condition = condition and (Kills.killedName inList Aircraft.entries.map { it.craft })
         }
         if (playerOnly) {
@@ -428,7 +428,7 @@ class DB() {
 
     fun getTargetsToKillsForUser(steamID: ULong, aircraftOnly: Boolean = false, playerOnly: Boolean = false): Map<String, Long>{
         var condition = Kills.killerID eq steamID
-        if (aircraftOnly){
+        if (aircraftOnly || playerOnly){
             condition = condition and (Kills.killedName inList Aircraft.entries.map { it.craft })
         }
         if (playerOnly) {
