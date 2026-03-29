@@ -17,6 +17,7 @@ import kotlinx.serialization.json.Json
 
 data class ApiConfig(
     val baseUrl: String,
+    val port: Int,
     val steam: SteamConfig,
     val jwt: JwtConfig
 )
