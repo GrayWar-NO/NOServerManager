@@ -26,7 +26,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private val serversToMissionIDs = mutableMapOf<String, Long>()
 
     private var discordMessageCallback: (suspend (ChatLog, Int) -> Unit)? = null
-    private var discordTKCallback: (suspend (KillLog, String) -> Unit)? = null
+    private var discordTKCallback: (suspend (KillLog, String, String) -> Unit)? = null
     private var discordLinkCallback: (suspend (LinkUser) -> Unit)? = null
 
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
@@ -248,7 +248,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
             db.addTeamKill(serversToMissionIDs[source] ?: 1, request)
-            discordTKCallback?.invoke(request, db.getLastPlayerName(request.killer.toULong()))
+            discordTKCallback?.invoke(request, db.getLastPlayerName(request.killer.toULong()), db.getLastPlayerName(request.killed.toULong()))
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -266,7 +266,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         discordMessageCallback = cb
     }
 
-    fun setTKCallback(cb: (suspend (KillLog, String) -> Unit)){
+    fun setTKCallback(cb: (suspend (KillLog, String, String) -> Unit)){
         if (discordTKCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordTKCallback = cb
     }

@@ -8,9 +8,9 @@ import dev.kordex.core.extensions.Extension
 class TeamKillExtension(val channel: ULong): Extension(){
     override val name = "teamKills"
     override suspend fun setup(){}
-    suspend fun sendTeamKill(log: KillLog, playerName: String){
+    suspend fun sendTeamKill(log: KillLog, killerName: String, killedName: String) {
         val discordChannel = kord.getChannel(Snowflake(channel)) as MessageChannelBehavior
-        val content = "```$playerName[${log.killerUnit}]:${log.killer.toULong()} teamkilled ${log.killedUnit} with ${log.weapon}```"
+        val content = "```$killerName[${log.killerUnit}]:${log.killer.toULong()} teamkilled $killedName[${log.killedUnit}]:${log.killed.toULong()} with ${log.weapon}```"
         discordChannel.createMessage(content)
     }
 }
