@@ -102,6 +102,15 @@ message Ack {
   bool ok = 1;
 }
 
+message Ban{
+  uint64 steamID = 1;
+  string reason = 2;
+}
+
+message BanList
+{
+  repeated Ban bans = 1;
+}
 
 
 // ---------------------------------------------------------------------
@@ -123,4 +132,8 @@ service EdgeAgentService {
   rpc SendChatLogsStream(stream ChatLog) returns (Ack);
   rpc SubscribeToBans(google.protobuf.Empty) returns (stream BanRequest);
   rpc SubscribeToCommands(stream CommandResult) returns (stream Command);
+}
+
+service BanListGenerator {
+  rpc GetBanList(google.protobuf.Empty) returns (BanList);
 }

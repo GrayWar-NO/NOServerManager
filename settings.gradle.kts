@@ -6,3 +6,4 @@ rootProject.name = "NOServerManager"
 include("proto")
 include("edge-agent")
 include("db-manager")
+include("BanListGenerator")

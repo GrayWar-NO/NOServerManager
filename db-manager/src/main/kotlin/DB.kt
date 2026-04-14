@@ -462,4 +462,15 @@ class DB() {
         }
         return kills.toDouble()/deaths.toDouble()
     }
+
+    fun getBans(): List<Pair<ULong, String>>{
+        val bans = transaction {
+            Bans
+                .select(Bans.steamID, Bans.reason)
+                .where { Bans.endTime.isNull() or Bans.endTime.greater(Clock.System.now()) }
+                .toList()
+        }
+        return List(bans.size, { i -> Pair(bans[i][Bans.steamID], bans[i][Bans.reason]) })
+    }
+
 }

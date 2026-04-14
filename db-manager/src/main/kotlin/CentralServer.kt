@@ -28,6 +28,7 @@ class CentralServer {
     private val db = DB(config.db)
 
     private val edgeAgent = EdgeAgentServiceImpl(db)
+    private val banListGenerator = BanListGeneratorServiceImpl(db)
 
     private val discord = Discord(config.discord, config.db, edgeAgent)
 
@@ -48,6 +49,7 @@ class CentralServer {
                 AgentIdInterceptor()
             )
         )
+        .addService(banListGenerator)
         .build()
 
     private val api = GwApi(config.api)
