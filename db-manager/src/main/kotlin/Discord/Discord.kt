@@ -4,6 +4,7 @@ import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.DataBaseConfig
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
 import com.graywar.noServerManager.proto.ChatLog
+import dev.kord.common.entity.Snowflake
 import dev.kordex.core.builders.ExtensibleBotBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -16,9 +17,11 @@ data class ServerConfig(val publicChat: ULong, val privateChat: ULong)
 data class DiscordConfig(
     val enable: Boolean,
     val token: String,
+    val guildID: ULong,
     val serverChannels: List<ServerConfig>,
     val teamKillChannel: ULong,
-    val adminRoles: List<ULong>
+    val adminRoles: List<ULong>,
+    val linkedRole: ULong
 )
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -39,7 +42,11 @@ class Discord(
             BatchMessagesExtension(config, db)
         }
         teamKillExt = TeamKillExtension(config.teamKillChannel)
-        linkExt = LinkMeExtension(db)
+        linkExt = LinkMeExtension(
+            db,
+            linkedRole = Snowflake(config.linkedRole),
+            linkedGuild =  Snowflake(config.guildID)
+        )
 
         val bot = ExtensibleBotBuilder().apply {
             kord {
@@ -48,7 +55,7 @@ class Discord(
                         maxRetries = 5
                         retryOnServerErrors(maxRetries = 5)
                         exponentialDelay()
-                        retryIf { request, response ->
+                        retryIf { _, response ->
                             response.status.value == 503
                         }
                     }
@@ -68,6 +75,7 @@ class Discord(
         botJob = scope.launch {
             bot.start()
         }
+        linkExt.initLinkedRoles()
     }
 
     fun stop() {

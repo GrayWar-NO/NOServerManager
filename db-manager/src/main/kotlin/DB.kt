@@ -317,6 +317,13 @@ class DB() {
         return (result == 1L)
     }
 
+    fun getLinkedUsers(): Collection<String>{
+        val result = transaction {
+            DiscordPlayers.select(DiscordPlayers.discordName).asIterable()
+        }
+        return result.map { it[DiscordPlayers.discordName] }
+    }
+
     fun getLastPlayerName(player: ULong): String{
         val result = transaction {
             MissionPlayers
