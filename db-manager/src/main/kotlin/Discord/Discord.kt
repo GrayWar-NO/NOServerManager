@@ -10,6 +10,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import io.ktor.client.plugins.HttpRequestRetry
 
 data class ServerConfig(val publicChat: ULong, val privateChat: ULong)
 data class DiscordConfig(
@@ -41,6 +42,18 @@ class Discord(
         linkExt = LinkMeExtension(db)
 
         val bot = ExtensibleBotBuilder().apply {
+            kord {
+                httpClient?.config {
+                    install(HttpRequestRetry) {
+                        maxRetries = 5
+                        retryOnServerErrors(maxRetries = 5)
+                        exponentialDelay()
+                        retryIf { request, response ->
+                            response.status.value == 503
+                        }
+                    }
+                } ?: error("HttpClient is null - cannot configure retry plugin")
+            }
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
                 add { teamKillExt }
