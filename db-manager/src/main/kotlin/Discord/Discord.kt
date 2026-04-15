@@ -32,14 +32,14 @@ class Discord(
     private val scope: CoroutineScope = GlobalScope
 ) {
     private var botJob: Job? = null
-    private lateinit var serverMessageExtensions: List<BatchMessagesExtension>
+    private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
     lateinit var teamKillExt: TeamKillExtension
     lateinit var linkExt: LinkMeExtension
     private val db = DB(databaseConfig)
 
     suspend fun start() {
         serverMessageExtensions = config.serverChannels.map { config ->
-            BatchMessagesExtension(config, db)
+            ChatMessagesExtension(config, db)
         }
         teamKillExt = TeamKillExtension(config.teamKillChannel)
         linkExt = LinkMeExtension(
@@ -71,6 +71,7 @@ class Discord(
         }.build(config.token)
 
         serverMessageExtensions.forEach { ext -> ext.startPeriodicSender() }
+        teamKillExt.startPeriodicSender()
 
         botJob = scope.launch {
             bot.start()
