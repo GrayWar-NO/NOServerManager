@@ -3,6 +3,7 @@ package com.graywar.noServerManager.dbManager.Discord
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.proto.LinkUser
 import dev.kord.common.entity.Snowflake
+import dev.kord.core.exception.EntityNotFoundException
 import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.int
 import dev.kordex.core.extensions.Extension
@@ -66,7 +67,10 @@ class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Sn
             val guild = kord.getGuild(linkedGuild)
             val member = guild.getMember(userId)
             member.addRole(linkedRole)
-        } catch (_: Exception) {}
+        }catch (e: EntityNotFoundException){
+            println("Could not add linked role to user ${userId.value}: ${e.message}")
+        }
+        catch (_: Exception) { }
     }
 
     suspend fun initLinkedRoles(){
