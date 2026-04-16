@@ -318,10 +318,9 @@ class DB() {
     }
 
     fun getLinkedUsers(): Collection<String>{
-        val result = transaction {
-            DiscordPlayers.select(DiscordPlayers.discordName).asIterable()
+    return transaction {
+            DiscordPlayers.select(DiscordPlayers.discordName).asIterable().map { it[DiscordPlayers.discordName] }
         }
-        return result.map { it[DiscordPlayers.discordName] }
     }
 
     fun getLastPlayerName(player: ULong): String{
@@ -479,5 +478,4 @@ class DB() {
         }
         return List(bans.size, { i -> Pair(bans[i][Bans.steamID], bans[i][Bans.reason]) })
     }
-
 }
