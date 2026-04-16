@@ -62,9 +62,11 @@ class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Sn
     }
 
     suspend fun addLinkedRole(userId: Snowflake){
-        val guild = kord.getGuild(linkedGuild)
-        val member = guild.getMember(userId)
-        member.addRole(linkedRole)
+        try {
+            val guild = kord.getGuild(linkedGuild)
+            val member = guild.getMember(userId)
+            member.addRole(linkedRole)
+        } catch (_: Exception) {}
     }
 
     suspend fun initLinkedRoles(){
