@@ -6,6 +6,7 @@ import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
 import com.graywar.noServerManager.proto.ChatLog
 import dev.kord.common.entity.Snowflake
 import dev.kordex.core.builders.ExtensibleBotBuilder
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -50,7 +51,7 @@ class Discord(
 
         val bot = ExtensibleBotBuilder().apply {
             kord {
-                httpClient?.config {
+                httpClient = HttpClient {
                     install(HttpRequestRetry) {
                         maxRetries = 5
                         retryOnServerErrors(maxRetries = 5)
@@ -59,7 +60,7 @@ class Discord(
                             response.status.value == 503
                         }
                     }
-                } ?: error("HttpClient is null - cannot configure retry plugin")
+                }
             }
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
