@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm")
     application
     id("dev.kordex.gradle.kordex") version "1.9.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.10"
 }
 
 group = "com.graywar"
