@@ -15,12 +15,13 @@ import kotlinx.coroutines.launch
 import io.ktor.client.plugins.HttpRequestRetry
 
 data class ServerConfig(val publicChat: ULong, val privateChat: ULong)
+data class ServerWebhookConfig(val publicChat: String, val privateChat: String)
 data class DiscordConfig(
     val enable: Boolean,
     val token: String,
     val guildID: ULong,
-    val serverChannels: List<ServerConfig>,
-    val teamKillChannel: ULong,
+    val serverWebhooks: List<ServerWebhookConfig>,
+    val teamKillWebhook: String,
     val adminRoles: List<ULong>,
     val linkedRole: ULong
 )
@@ -33,16 +34,16 @@ class Discord(
     private val scope: CoroutineScope = GlobalScope
 ) {
     private var botJob: Job? = null
-    private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
-    lateinit var teamKillExt: TeamKillExtension
+    private lateinit var serverMessageExtensions: List<ChatMessagesWebhookExtension>
+    lateinit var teamKillExt: TeamKillWebhookExtension
     lateinit var linkExt: LinkMeExtension
     private val db = DB(databaseConfig)
 
     suspend fun start() {
-        serverMessageExtensions = config.serverChannels.map { config ->
-            ChatMessagesExtension(config, db)
+        serverMessageExtensions = config.serverWebhooks.map { config ->
+            ChatMessagesWebhookExtension(config, db)
         }
-        teamKillExt = TeamKillExtension(config.teamKillChannel)
+        teamKillExt = TeamKillWebhookExtension(config.teamKillWebhook)
         linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
@@ -70,9 +71,6 @@ class Discord(
                 add { StatsExtension(db) }
             }
         }.build(config.token)
-
-        serverMessageExtensions.forEach { ext -> ext.startPeriodicSender() }
-        teamKillExt.startPeriodicSender()
 
         botJob = scope.launch {
             bot.start()

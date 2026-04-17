@@ -34,5 +34,18 @@ class TeamKillExtension(val channel: ULong): Extension(){
             }
         }
     }
+}
 
+class TeamKillWebhookExtension(val url: String): Extension(){
+    override val name = "teamKills"
+
+    private lateinit var sender: WebhookSender
+
+    override suspend fun setup(){
+        sender = WebhookSender(url, "Teamkills Reporter")
+    }
+
+    suspend fun sendTeamKill(log: KillLog, killerName: String, killedName: String, server: String) {
+        sender.send("```$killerName[${log.killerUnit}]:${log.killer.toULong()} teamkilled $killedName[${log.killedUnit}]:${log.killed.toULong()} with ${log.weapon} on server $server```")
+    }
 }
