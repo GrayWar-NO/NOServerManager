@@ -14,13 +14,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import io.ktor.client.plugins.HttpRequestRetry
 
-data class ServerConfig(val publicChat: ULong, val privateChat: ULong)
-data class ServerWebhookConfig(val publicChat: String, val privateChat: String)
+data class ServerConfig(val publicChat: String, val privateChat: String)
 data class DiscordConfig(
     val enable: Boolean,
     val token: String,
     val guildID: ULong,
-    val serverWebhooks: List<ServerWebhookConfig>,
+    val serverWebhooks: List<ServerConfig>,
     val teamKillWebhook: String,
     val adminRoles: List<ULong>,
     val linkedRole: ULong
@@ -34,16 +33,16 @@ class Discord(
     private val scope: CoroutineScope = GlobalScope
 ) {
     private var botJob: Job? = null
-    private lateinit var serverMessageExtensions: List<ChatMessagesWebhookExtension>
-    lateinit var teamKillExt: TeamKillWebhookExtension
+    private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
+    lateinit var teamKillExt: TeamKillExtension
     lateinit var linkExt: LinkMeExtension
     private val db = DB(databaseConfig)
 
     suspend fun start() {
         serverMessageExtensions = config.serverWebhooks.map { config ->
-            ChatMessagesWebhookExtension(config, db)
+            ChatMessagesExtension(config, db)
         }
-        teamKillExt = TeamKillWebhookExtension(config.teamKillWebhook)
+        teamKillExt = TeamKillExtension(config.teamKillWebhook)
         linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
