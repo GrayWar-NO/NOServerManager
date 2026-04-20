@@ -103,7 +103,6 @@ fun main() = runBlocking {
             val resultFlow = MutableSharedFlow<CommandResult>(extraBufferCapacity = 100)
             val commandFlow: Flow<Command> = grpcStub.subscribeToCommands(resultFlow)
 
-            // Collect incoming commands
             commandFlow.collect { command ->
                 val commandPacket = CommandPacket(
                     commandName = command.name,
@@ -111,7 +110,8 @@ fun main() = runBlocking {
                     result = command.result
                 )
 
-                // Enqueue/execute command
+                println("Received command ${command.name} from central with arguments ${command.argumentsList}")
+
                 val response: ResponsePacket? = cmdMgr.enqueueCommand(commandPacket)
 
                 var resultBuilder = CommandResult.newBuilder()
@@ -180,6 +180,7 @@ fun main() = runBlocking {
                 delay(config.central.pingDelay.toLong().seconds)
             } catch (e: Exception) {
                 println("[Edge] Ping failed: ${e.message}")
+                // TODO nothing received from game.
             }
         }
         println("[Edge] game stopped responding.")
@@ -228,6 +229,7 @@ suspend fun <T> retryWithBackoff(
             throw e
         } catch (e: Exception) {
             println("Retrying in $currentDelay seconds after error: ${e.message}")
+            e.printStackTrace()
         }
         delay(currentDelay.seconds)
         currentDelay = (currentDelay * factor).toInt().coerceAtMost(maxDelay)
