@@ -78,6 +78,7 @@ class ManagedSocket(
                 }
             } finally {
                 closeResources()
+                onDisconnected()
             }
         }
     }
@@ -88,7 +89,6 @@ class ManagedSocket(
         writer = null
         socket = null
         currentWriter = null
-        onDisconnected()
     }
 
     fun sendWithWriter(line: String){
