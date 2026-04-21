@@ -122,4 +122,5 @@ object Donations: Table() {
     val receiverSteamID = ulong("receiverSteamId")
     val amount = integer("amount")
     val timestamp = timestamp("timestamp")
+    override val primaryKey = PrimaryKey(id)
 }
