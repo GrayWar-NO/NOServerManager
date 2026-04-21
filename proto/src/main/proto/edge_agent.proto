@@ -63,6 +63,11 @@ message JoinLeaveLog{
   google.protobuf.Timestamp time = 5;
 }
 
+message FactionLog{
+  uint64 steamID = 1;
+  string faction = 2;
+}
+
 message missionStatus{
   string missionName = 1;
   google.protobuf.Timestamp time = 2;
@@ -130,6 +135,7 @@ service EdgeAgentService {
   rpc SendKick(KickLog) returns (Ack);
   rpc SendWarn(WarnLog) returns (Ack);
   rpc SendPlayerActivity(JoinLeaveLog) returns (Ack);
+  rpc SendPlayerJoinFac(FactionLog) returns (Ack);
   rpc SendMissionChange(missionStatus) returns (Ack);
   rpc SendSortieChange(sortieStatus) returns (Ack);
   rpc SendKill(KillLog) returns (Ack);

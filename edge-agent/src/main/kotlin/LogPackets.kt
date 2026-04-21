@@ -7,6 +7,7 @@ import java.time.Instant
 
 enum class LogChannel{
     JoinLeave,
+    FactionJoin,
     MissionStatus,
     SortieStatus,
     Teamkill,
@@ -29,6 +30,7 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
                               grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub){
     val result = when (packet.channel) {
         LogChannel.JoinLeave -> sendPlayerAct(packet, grpcStub)
+        LogChannel.FactionJoin -> sendPlayerJoinFac(packet, grpcStub)
         LogChannel.MissionStatus -> sendMission(packet, grpcStub)
         LogChannel.SortieStatus -> sendSortie(packet, grpcStub)
         LogChannel.Warn -> sendWarn(packet, grpcStub)
@@ -55,6 +57,17 @@ suspend fun sendPlayerAct(packet: LogEntryPacket,
         .build()
     return grpcStub.sendPlayerActivity(request)
 }
+
+suspend fun sendPlayerJoinFac(packet: LogEntryPacket,
+                              grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
+    val values = packet.logText.split(":")
+    val request = FactionLog.newBuilder()
+        .setSteamID(values[0].toULong().toLong())
+        .setFaction(values[1])
+        .build()
+    return grpcStub.sendPlayerJoinFac(request)
+}
+
 
 suspend fun sendMission(packet: LogEntryPacket,
                         grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {

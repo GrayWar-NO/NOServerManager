@@ -271,6 +271,27 @@ class DB() {
         }
     }
 
+    fun playerJoinFaction(steamID: ULong, faction: String) {
+        transaction {
+            val row = MissionPlayers
+                .selectAll()
+                .where {
+                    (MissionPlayers.steamID eq steamID) and
+                            MissionPlayers.faction.isNull() and
+                            MissionPlayers.leaveTime.isNull() and
+                            MissionPlayers.score.isNull()
+                }
+                .orderBy(MissionPlayers.joinTime to SortOrder.DESC)
+                .firstOrNull()
+
+            if (row != null) {
+                MissionPlayers.update({ MissionPlayers.id eq row[MissionPlayers.id] }) {
+                    it[MissionPlayers.faction] = faction
+                }
+            }
+        }
+    }
+
     fun addKill(mission: Long, kill: KillLog) {
         transaction {
             Kills.insert {

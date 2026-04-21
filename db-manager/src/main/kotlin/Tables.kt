@@ -31,6 +31,7 @@ object MissionPlayers: Table() {
     val name = varchar("name", 50)
     val mission = long("mission").references(ServerMissions.id)
     val joinTime = timestamp("joinTime")
+    val faction = varchar("faction", 50).nullable()
     val leaveTime = timestamp("leavetime").nullable()
     val score = float("score").nullable()
     override val primaryKey = PrimaryKey(id)

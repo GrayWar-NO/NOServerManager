@@ -198,6 +198,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
+    override suspend fun sendPlayerJoinFac(request: FactionLog): Ack {
+        db.playerJoinFaction(request.steamID.toULong(), request.faction)
+        return Ack.newBuilder().setOk(true).build()
+    }
+
     override suspend fun sendMissionChange(request: missionStatus): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
