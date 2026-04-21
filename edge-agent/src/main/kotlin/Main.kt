@@ -37,8 +37,7 @@ fun main() = runBlocking {
         .build()
         .loadConfigOrThrow<EdgeConfig>()
 
-    // ---------- 1️⃣  Open TCP connection to the game server ----------
-    val socket = Socket(config.nuclearOption.host, config.nuclearOption.port)
+    val socket = retryWithBackoff { Socket(config.nuclearOption.host, config.nuclearOption.port) }
     println("[Edge] Connected to game server at ${config.nuclearOption.host}:${config.nuclearOption.port}")
     val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream()))
 
@@ -217,10 +216,12 @@ private suspend fun cleanup(
 suspend fun <T> retryWithBackoff(
     initialDelay: Int = 1,
     maxDelay: Int = 60,
+    maxRetries: Int? = null,
     factor: Double = 2.0,
     block: suspend () -> T
 ): T {
     var currentDelay = initialDelay
+    var currentRetries = 0
 
     while (currentCoroutineContext().isActive) {
         try {
@@ -228,8 +229,12 @@ suspend fun <T> retryWithBackoff(
         } catch (e: CancellationException){
             throw e
         } catch (e: Exception) {
+            if (maxRetries == null || currentRetries == maxRetries) {
+                throw e
+            }
             println("Retrying in $currentDelay seconds after error: ${e.message}")
             e.printStackTrace()
+            currentRetries++
         }
         delay(currentDelay.seconds)
         currentDelay = (currentDelay * factor).toInt().coerceAtMost(maxDelay)
