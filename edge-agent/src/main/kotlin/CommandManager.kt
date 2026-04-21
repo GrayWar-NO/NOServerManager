@@ -4,7 +4,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.*
 import kotlinx.serialization.json.Json
-import java.io.BufferedWriter
 
 @Serializable
 @SerialName("command")
@@ -20,7 +19,7 @@ data class QueuedCommand(
 )
 
 class CommandManager(
-    private val writer: BufferedWriter,
+    private val client: ManagedSocket,
     private val scope: CoroutineScope
 ) {
     private var commandInFlight: QueuedCommand? = null
@@ -36,11 +35,12 @@ class CommandManager(
         job = scope.launch {
             for (queued in commandQueue) {
                 commandInFlight = queued
-                sendCommand(queued.packet)
-
-                // Wait for response if needed
+                try {
+                    sendCommand(queued.packet)
+                } catch (_: NotConnectedException) {
+                    queued.result?.complete(ResponsePacket("Could not execute command: Edge is up but not connected to game."))
+                }
                 queued.result?.await()
-
                 commandInFlight = null
             }
         }
@@ -58,9 +58,7 @@ class CommandManager(
 
     private suspend fun sendCommand(packet: GamePacket) {
         withContext(Dispatchers.IO) {
-            writer.write(json.encodeToString(packet))
-            writer.newLine()
-            writer.flush()
+            client.sendWithWriter(json.encodeToString(packet))
         }
     }
 

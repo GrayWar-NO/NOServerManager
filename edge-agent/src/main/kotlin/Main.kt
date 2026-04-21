@@ -18,12 +18,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.BufferedReader
-import java.io.BufferedWriter
 import java.io.File
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.net.Socket
+import java.net.ConnectException
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 
@@ -36,10 +32,6 @@ fun main() = runBlocking {
         .addFileSource("edge-agent.conf")
         .build()
         .loadConfigOrThrow<EdgeConfig>()
-
-    val socket = retryWithBackoff { Socket(config.nuclearOption.host, config.nuclearOption.port) }
-    println("[Edge] Connected to game server at ${config.nuclearOption.host}:${config.nuclearOption.port}")
-    val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream()))
 
     val pingProc = PingPacketProcessor()
 
@@ -67,7 +59,43 @@ fun main() = runBlocking {
 
     val jobs = mutableListOf<Job>()
 
-    val cmdMgr = CommandManager(writer, scope = CoroutineScope(Dispatchers.Default))
+    lateinit var cmdMgr: CommandManager
+
+    val client = ManagedSocket(
+        host = config.nuclearOption.host,
+        port = config.nuclearOption.port,
+        onConnected = {
+            println("[Edge] Connected to game")
+        },
+        onMessage = {client, line ->
+            println("[Edge] Game says $line")
+            var outPacket: GamePacket? = null
+            when (val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)) {
+                is PingPacket ->outPacket = pingProc.processPacket(packet)
+                is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
+                is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
+                is LogEntryPacket -> logEntryProcessor(packet, grpcStub)
+                is ResponsePacket -> cmdMgr.onReceivePacket(packet)
+                is LinkPacket -> sendLink(packet, grpcStub)
+            }
+            if (outPacket != null) {
+                try {
+                    client.sendWithWriter(Json.encodeToString(outPacket))
+                } catch (_: NotConnectedException) {}
+            }
+        },
+        onDisconnected = {
+            println("[Edge] Game disconnected")
+        },
+        onError = {e ->
+            println("[Edge] Error in game Socket: ${e.message}")
+            if (e is ConnectException) return@ManagedSocket
+            e.printStackTrace()
+        }
+    )
+    client.connect()
+
+    cmdMgr = CommandManager(client, scope = CoroutineScope(Dispatchers.Default))
     cmdMgr.start()
 
     jobs.add (launch (Dispatchers.IO){
@@ -123,34 +151,6 @@ fun main() = runBlocking {
         }
     })
 
-    jobs.add(launch(Dispatchers.IO) {
-            retryWithBackoff {
-                    val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-                    var line: String?
-                    while (reader.readLine().also { line = it } != null && isActive) {
-                        println("[Edge] Game says $line")
-                        if (line == null) continue
-                        var outPacket: GamePacket? = null
-                        when (val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)) {
-                            is PingPacket -> {
-                                outPacket = pingProc.processPacket(packet)
-                            }
-
-                            is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
-                            is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
-                            is LogEntryPacket -> logEntryProcessor(packet, grpcStub)
-                            is ResponsePacket -> cmdMgr.onReceivePacket(packet)
-                            is LinkPacket -> sendLink(packet, grpcStub)
-                        }
-                        if (outPacket != null) {
-                            writer.write(Json.encodeToString(outPacket))
-                            writer.newLine()
-                            writer.flush()
-                        }
-                    }
-            }
-        })
-
     jobs.add(
         launch {
             while (isActive) {
@@ -171,25 +171,10 @@ fun main() = runBlocking {
         }
     )
 
-    jobs.add(launch(Dispatchers.IO) {
-        while (isActive) {
-            try {
-//                println("[Edge] sending ping to game")
-                if (!pingProc.sendNewPing(writer)) break
-                delay(config.central.pingDelay.toLong().seconds)
-            } catch (e: Exception) {
-                println("[Edge] Ping failed: ${e.message}")
-                // TODO nothing received from game.
-            }
-        }
-        println("[Edge] game stopped responding.")
-    })
-
     Runtime.getRuntime().addShutdownHook(Thread {
-        runBlocking { cleanup(jobs, socket, channel, cmdMgr) }
+        runBlocking { cleanup(jobs, client, channel, cmdMgr) }
     })
 
-    // Wait until either one of the jobs fail.
     select {
         jobs.forEach { job ->
             job.onJoin { }
@@ -198,7 +183,7 @@ fun main() = runBlocking {
 
 private suspend fun cleanup(
     jobs: List<Job>,
-    socket: Socket,
+    client: ManagedSocket,
     channel: ManagedChannel,
     cmdMgr: CommandManager
 ) {
@@ -207,9 +192,7 @@ private suspend fun cleanup(
         job.cancelAndJoin()
     }
     cmdMgr.stop()
-    if (!socket.isClosed) withContext(Dispatchers.IO) {
-        socket.close()
-    }
+    client.cancel()
     channel.shutdownNow()
 }
 
@@ -233,7 +216,7 @@ suspend fun <T> retryWithBackoff(
                 throw e
             }
             println("Retrying in $currentDelay seconds after error: ${e.message}")
-            e.printStackTrace()
+//            e.printStackTrace()
             currentRetries++
         }
         delay(currentDelay.seconds)
