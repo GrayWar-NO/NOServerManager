@@ -13,7 +13,8 @@ enum class LogChannel{
     Kill,
     Kick,
     Ban,
-    Warn
+    Warn,
+    Donate
 }
 
 
@@ -35,6 +36,7 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
         LogChannel.Kill -> grpcStub.sendKill(genKillLog(packet))
         LogChannel.Kick -> sendKick(packet, grpcStub)
         LogChannel.Ban -> sendBan(packet, grpcStub)
+        LogChannel.Donate -> sendDonate(packet, grpcStub)
     }
     if (result == null || !result.ok) {println("[Edge] Failed processing log packet with text ${packet.logText} as ${packet.channel}")}
 }
@@ -161,3 +163,21 @@ fun genKillLog(packet: LogEntryPacket): KillLog{
         .build()
     return request
 }
+
+suspend fun sendDonate(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack? {
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
+    val values = packet.logText.split(':')
+    val donorID: ULong = values[0].toULongOrNull() ?: 0UL
+    val rcvID: ULong = values[1].toULongOrNull() ?: 0UL
+    val amount: Int? = values[2].toIntOrNull()
+    if (amount == null || amount == 0) return null
+    val request = DonationLog.newBuilder()
+        .setTime(timestampNow)
+        .setDonatorSteamID(donorID.toLong())
+        .setReceiverSteamID(rcvID.toLong())
+        .setAmountMillions(amount)
+        .build()
+
+    return grpcStub.sendDonation(request)
+}
+

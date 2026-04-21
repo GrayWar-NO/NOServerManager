@@ -3,6 +3,7 @@ package com.graywar.noServerManager.dbManager
 import com.google.protobuf.Timestamp
 import com.graywar.noServerManager.proto.KillLog
 import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.datetime.time
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -307,6 +308,18 @@ class DB() {
             }
         }
     }
+
+    fun addDonation(donorID: ULong, rcvId: ULong, amount: Int, time: Timestamp) {
+        transaction {
+            Donations.insert {
+                it[donatorSteamID] = donorID
+                it[receiverSteamID] = rcvId
+                it[Donations.amount] = amount
+                it[Donations.timestamp] = transformTimestamp(time)
+            }
+        }
+    }
+
 
     fun isUserInDb(discordID: String): Boolean{
         val result = transaction {

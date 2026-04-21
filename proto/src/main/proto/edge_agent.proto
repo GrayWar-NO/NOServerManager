@@ -112,6 +112,13 @@ message BanList
   repeated Ban bans = 1;
 }
 
+message DonationLog{
+  uint64 donatorSteamID = 1;
+  uint64 receiverSteamID = 2;
+  uint32 amountMillions = 3;
+  google.protobuf.Timestamp time = 4;
+}
+
 
 // ---------------------------------------------------------------------
 // Services
@@ -128,6 +135,7 @@ service EdgeAgentService {
   rpc SendKill(KillLog) returns (Ack);
   rpc SendTeamKill(KillLog) returns (Ack);
   rpc sendLinkCode(LinkUser) returns (Ack);
+  rpc sendDonation(DonationLog) returns (Ack);
 
   rpc SendChatLogsStream(stream ChatLog) returns (Ack);
   rpc SubscribeToBans(google.protobuf.Empty) returns (stream BanRequest);

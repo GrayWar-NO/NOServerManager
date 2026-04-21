@@ -115,3 +115,11 @@ object DiscordPlayers: Table() {
     val steamID = ulong("steamid").uniqueIndex()
     val discordName = varchar("discord_name", 32).uniqueIndex()
 }
+
+object Donations: Table() {
+    val id = long("id").autoIncrement()
+    val donatorSteamID = ulong("donatorSteamId")
+    val receiverSteamID = ulong("receiverSteamId")
+    val amount = integer("amount")
+    val timestamp = timestamp("timestamp")
+}

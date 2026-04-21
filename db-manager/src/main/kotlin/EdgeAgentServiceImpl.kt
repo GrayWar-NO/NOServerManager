@@ -261,6 +261,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
+    override suspend fun sendDonation(request: DonationLog): Ack {
+        db.addDonation(request.donatorSteamID.toULong(), request.receiverSteamID.toULong(), request.amountMillions, request.time)
+        return Ack.newBuilder().setOk(true).build()
+    }
+
     fun setMsgCallback(cb: (suspend (ChatLog, Int) -> Unit)){
         if (discordMessageCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordMessageCallback = cb
