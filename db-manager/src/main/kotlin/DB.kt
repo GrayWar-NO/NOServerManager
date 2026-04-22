@@ -51,6 +51,7 @@ class DB() {
             SchemaUtils.create(NoTrack)
             SchemaUtils.create(Warns)
             SchemaUtils.create(DiscordPlayers)
+            SchemaUtils.create(Donations)
         }
     }
 
