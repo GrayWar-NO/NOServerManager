@@ -13,6 +13,9 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import io.ktor.client.plugins.HttpRequestRetry
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.time.Duration.Companion.seconds
 
 data class ServerConfig(val publicChat: String, val privateChat: String)
 data class DiscordConfig(
@@ -72,7 +75,15 @@ class Discord(
         }.build(config.token)
 
         botJob = scope.launch {
-            bot.start()
+            while (isActive) {
+                try {
+                    bot.start()
+                } catch (e: Exception) {
+                    println("[Discord] Bot crashed: ${e.message}")
+                }
+                println("[Discord] Bot stopped. Restarting in 5s...")
+                delay(5.seconds)
+            }
         }
         linkExt.initLinkedRoles()
     }
