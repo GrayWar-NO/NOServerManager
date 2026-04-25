@@ -21,12 +21,15 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.net.ConnectException
 import java.time.Instant
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Duration.Companion.seconds
 
 
 data class Remote (val host: String, val port: Int, val pingDelay: Int)
 data class EdgeConfig (val name: String, val nuclearOption: Remote, val central: Remote)
 
+@OptIn(ExperimentalAtomicApi::class)
 fun main() = runBlocking {
     val config = ConfigLoaderBuilder.default()
         .addFileSource("edge-agent.conf")
@@ -61,6 +64,8 @@ fun main() = runBlocking {
 
     lateinit var cmdMgr: CommandManager
 
+    val ignoreNextBan = AtomicBoolean(false)
+
     val client = ManagedSocket(
         host = config.nuclearOption.host,
         port = config.nuclearOption.port,
@@ -74,7 +79,7 @@ fun main() = runBlocking {
                 is PingPacket ->outPacket = pingProc.processPacket(packet)
                 is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
                 is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
-                is LogEntryPacket -> logEntryProcessor(packet, grpcStub)
+                is LogEntryPacket -> logEntryProcessor(packet, grpcStub, ignoreNextBan)
                 is ResponsePacket -> cmdMgr.onReceivePacket(packet)
                 is LinkPacket -> sendLink(packet, grpcStub)
             }
@@ -120,7 +125,11 @@ fun main() = runBlocking {
                     ) else listOf(ban.steamID.toString()),
                     result = false
                 )
+                if (!ignoreNextBan.compareAndSet(expectedValue = false, newValue = true)){
+                    throw Exception("Ban was forwarded when ignoreNextBan is true")
+                }
                 cmdMgr.enqueueCommand(banCommandPacket)
+                println("[Edge] Game banned by Central request: $banCommandPacket")
             }
         }
     })

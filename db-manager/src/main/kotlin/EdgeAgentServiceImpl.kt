@@ -146,7 +146,10 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             }
             banSubscribers
                 .filterKeys { key -> key != source }
-                .forEach { (_, channel) -> channel.trySend(request) }
+                .forEach { (key, channel) ->
+                    channel.trySend(request)
+                    println("[Ban] Sending ban for ${request.steamID} to server $key")
+                }
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()

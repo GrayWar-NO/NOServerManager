@@ -4,6 +4,8 @@ import com.google.protobuf.Timestamp
 import com.graywar.noServerManager.proto.*
 import kotlinx.serialization.*
 import java.time.Instant
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 enum class LogChannel{
     JoinLeave,
@@ -26,8 +28,11 @@ data class LogEntryPacket(
     val logText: String
 ) : GamePacket()
 
+@OptIn(ExperimentalAtomicApi::class)
 suspend fun logEntryProcessor(packet: LogEntryPacket,
-                              grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub){
+                              grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub,
+                              ignoreNextBan: AtomicBoolean
+){
     val result = when (packet.channel) {
         LogChannel.JoinLeave -> sendPlayerAct(packet, grpcStub)
         LogChannel.FactionJoin -> sendPlayerJoinFac(packet, grpcStub)
@@ -37,7 +42,12 @@ suspend fun logEntryProcessor(packet: LogEntryPacket,
         LogChannel.Teamkill -> grpcStub.sendTeamKill(genKillLog(packet))
         LogChannel.Kill -> grpcStub.sendKill(genKillLog(packet))
         LogChannel.Kick -> sendKick(packet, grpcStub)
-        LogChannel.Ban -> sendBan(packet, grpcStub)
+        LogChannel.Ban -> {
+            if (ignoreNextBan.compareAndSet(expectedValue = true, newValue = false)) {
+                return
+            }
+            sendBan(packet, grpcStub)
+        }
         LogChannel.Donate -> sendDonate(packet, grpcStub)
     }
     if (result == null || !result.ok) {println("[Edge] Failed processing log packet with text ${packet.logText} as ${packet.channel}")}
