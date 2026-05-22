@@ -11,10 +11,11 @@ class ChatMessagesExtension(val config: ServerConfig, val db: DB): Extension() {
     private lateinit var  privateMessageWebhook: WebhookSender
 
     suspend fun enqueueMessage(message: ChatLog){
-        val userName = db.getLastPlayerName(message.senderSteamID.toULong())
-        privateMessageWebhook.send(WebhookPayload("$userName in ${message.messageChannel} chat", message.message))
+        val steamID = message.senderSteamID.toULong()
+        val userName = db.getLastPlayerName(steamID)
+        privateMessageWebhook.send(WebhookPayload("$userName in ${message.messageChannel} chat", "$userName: ${message.message}"))
         if (message.messageChannel == "all"){
-            publicMessageWebhook.send(WebhookPayload(userName, "```${message.message}```"))
+            publicMessageWebhook.send(WebhookPayload(userName, "```$userName($steamID): ${message.message}```"))
         }
     }
 
