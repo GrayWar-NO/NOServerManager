@@ -110,9 +110,12 @@ class DB() {
         return result[ServerMissions.id]
     }
 
-    fun newServer(name: String) {
+    fun newServer(name: String, maxPlayers: Int) {
         transaction {
-            Servers.insert { it[Servers.name] = name }
+            Servers.insert {
+                it[Servers.name] = name
+                it[Servers.maxPlayers] = maxPlayers
+            }
         }
     }
 

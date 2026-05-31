@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 object Servers: Table() {
     val id = integer("id").autoIncrement()
     val name = varchar("name", 50)
+    val maxPlayers = integer("maxPlayers")
     override val primaryKey = PrimaryKey(id)
 }
 

@@ -8,6 +8,7 @@ import dev.kordex.core.checks.types.CheckContext
 import dev.kordex.core.checks.userFor
 import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.boolean
+import dev.kordex.core.commands.converters.impl.int
 import dev.kordex.core.commands.converters.impl.optionalBoolean
 import dev.kordex.core.commands.converters.impl.optionalString
 import dev.kordex.core.commands.converters.impl.string
@@ -40,6 +41,10 @@ class CreateServerCommandArgs : Arguments() {
     val name by string {
         name = Key("name")
         description = Key("Name of the server")
+    }
+    val maxPlayers by int {
+        name = Key("max_players")
+        description = Key("Maximum number of players")
     }
 }
 
@@ -163,7 +168,7 @@ class CentralServerExtension(
             }
 
             action {
-                db.newServer(arguments.name)
+                db.newServer(arguments.name, arguments.maxPlayers)
                 respond { content = "Created server ${arguments.name} in the database!" }
             }
         }
