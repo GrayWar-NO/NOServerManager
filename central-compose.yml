@@ -1,0 +1,26 @@
+services:
+  central:
+    image: grayWar/central:latest
+    container_name: gw_central
+    volumes:
+      - ./CA:/app/CA
+      - ./central.conf:/app/central.conf
+    ports:
+      - "50051:50051/tcp"
+      - "8069:8069/tcp"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16
+    container_name: gw_postgres
+    environment:
+      POSTGRES_DB: Central
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: YOUR_PASSWORD_HERE
+    command: ["postgres", "-p", "5432"]
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+
+volumes:
+  postgres_db:
