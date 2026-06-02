@@ -1,0 +1,20 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Edge image build
+      run: docker build . --file edge.Dockerfile --tag grayWar/edge-agent:$(date +%s)
+    - name: Central image build
+      run: docker build . --file central.Dockerfile --tag grayWar/central:$(date +%s)
