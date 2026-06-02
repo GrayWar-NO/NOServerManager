@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 object Servers: Table() {
     val id = integer("id").autoIncrement()
     val name = varchar("name", 50)
+    val maxPlayers = integer("maxPlayers")
     override val primaryKey = PrimaryKey(id)
 }
 
@@ -31,6 +32,7 @@ object MissionPlayers: Table() {
     val name = varchar("name", 50)
     val mission = long("mission").references(ServerMissions.id)
     val joinTime = timestamp("joinTime")
+    val faction = varchar("faction", 50).nullable()
     val leaveTime = timestamp("leavetime").nullable()
     val score = float("score").nullable()
     override val primaryKey = PrimaryKey(id)
@@ -114,4 +116,13 @@ object NoTrack: Table() {
 object DiscordPlayers: Table() {
     val steamID = ulong("steamid").uniqueIndex()
     val discordName = varchar("discord_name", 32).uniqueIndex()
+}
+
+object Donations: Table() {
+    val id = long("id").autoIncrement()
+    val donatorSteamID = ulong("donatorSteamId")
+    val receiverSteamID = ulong("receiverSteamId")
+    val amount = integer("amount")
+    val timestamp = timestamp("timestamp")
+    override val primaryKey = PrimaryKey(id)
 }

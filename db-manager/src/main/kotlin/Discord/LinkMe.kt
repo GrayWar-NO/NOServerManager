@@ -2,6 +2,8 @@ package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.proto.LinkUser
+import dev.kord.common.entity.Snowflake
+import dev.kord.core.exception.EntityNotFoundException
 import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.int
 import dev.kordex.core.extensions.Extension
@@ -10,6 +12,7 @@ import dev.kordex.i18n.Key
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 class LinkMeArguments: Arguments() {
     val code by int {
@@ -18,7 +21,7 @@ class LinkMeArguments: Arguments() {
     }
 }
 
-class LinkMeExtension(val db: DB): Extension() {
+class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Snowflake): Extension() {
     override val name: String = "linkMe"
     val codesToSteamIDs = mutableMapOf<Int, ULong>()
 
@@ -40,6 +43,7 @@ class LinkMeExtension(val db: DB): Extension() {
                 }
                 val steamID = codesToSteamIDs[arguments.code]!!
                 db.addLink(steamID, user.id.toString())
+                addLinkedRole(user.id)
                 codesToSteamIDs.remove(arguments.code)
                 respond {
                     content = "Your in-game stats have been linked sucessfully!"
@@ -57,4 +61,23 @@ class LinkMeExtension(val db: DB): Extension() {
             }
         }
     }
+
+    suspend fun addLinkedRole(userId: Snowflake){
+        try {
+            val guild = kord.getGuild(linkedGuild)
+            val member = guild.getMember(userId)
+            member.addRole(linkedRole)
+        }catch (e: EntityNotFoundException){
+            println("Could not add linked role to user ${userId.value}: ${e.message}")
+        }
+        catch (_: Exception) { }
+    }
+
+    suspend fun initLinkedRoles(){
+        db.getLinkedUsers().chunked(5).forEach { batch ->
+            batch.forEach { user -> addLinkedRole(Snowflake(user)) }
+            delay(1.seconds)
+        }
+    }
+
 }

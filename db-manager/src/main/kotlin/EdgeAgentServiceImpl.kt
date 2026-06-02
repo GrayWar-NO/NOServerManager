@@ -26,7 +26,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private val serversToMissionIDs = mutableMapOf<String, Long>()
 
     private var discordMessageCallback: (suspend (ChatLog, Int) -> Unit)? = null
-    private var discordTKCallback: (suspend (KillLog, String) -> Unit)? = null
+    private var discordTKCallback: (suspend (KillLog, String, String, String) -> Unit)? = null
     private var discordLinkCallback: (suspend (LinkUser) -> Unit)? = null
 
     override suspend fun reportStatus(request: StatusRequest): StatusResponse {
@@ -146,7 +146,10 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             }
             banSubscribers
                 .filterKeys { key -> key != source }
-                .forEach { (_, channel) -> channel.trySend(request) }
+                .forEach { (key, channel) ->
+                    channel.trySend(request)
+                    println("[Ban] Sending ban for ${request.steamID} to server $key")
+                }
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -195,6 +198,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
         }
+        return Ack.newBuilder().setOk(true).build()
+    }
+
+    override suspend fun sendPlayerJoinFac(request: FactionLog): Ack {
+        db.playerJoinFaction(request.steamID.toULong(), request.faction)
         return Ack.newBuilder().setOk(true).build()
     }
 
@@ -248,7 +256,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
             db.addTeamKill(serversToMissionIDs[source] ?: 1, request)
-            discordTKCallback?.invoke(request, db.getLastPlayerName(request.killer.toULong()))
+            discordTKCallback?.invoke(request, db.getLastPlayerName(request.killer.toULong()), db.getLastPlayerName(request.killed.toULong()), source)
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -261,12 +269,17 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
+    override suspend fun sendDonation(request: DonationLog): Ack {
+        db.addDonation(request.donatorSteamID.toULong(), request.receiverSteamID.toULong(), request.amountMillions, request.time)
+        return Ack.newBuilder().setOk(true).build()
+    }
+
     fun setMsgCallback(cb: (suspend (ChatLog, Int) -> Unit)){
         if (discordMessageCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordMessageCallback = cb
     }
 
-    fun setTKCallback(cb: (suspend (KillLog, String) -> Unit)){
+    fun setTKCallback(cb: (suspend (KillLog, String, String, String) -> Unit)){
         if (discordTKCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordTKCallback = cb
     }

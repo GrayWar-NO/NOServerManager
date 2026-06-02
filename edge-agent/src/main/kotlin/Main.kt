@@ -18,29 +18,23 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.BufferedReader
-import java.io.BufferedWriter
 import java.io.File
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.net.Socket
+import java.net.ConnectException
 import java.time.Instant
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Duration.Companion.seconds
 
 
 data class Remote (val host: String, val port: Int, val pingDelay: Int)
 data class EdgeConfig (val name: String, val nuclearOption: Remote, val central: Remote)
 
+@OptIn(ExperimentalAtomicApi::class)
 fun main() = runBlocking {
     val config = ConfigLoaderBuilder.default()
         .addFileSource("edge-agent.conf")
         .build()
         .loadConfigOrThrow<EdgeConfig>()
-
-    // ---------- 1️⃣  Open TCP connection to the game server ----------
-    val socket = Socket(config.nuclearOption.host, config.nuclearOption.port)
-    println("[Edge] Connected to game server at ${config.nuclearOption.host}:${config.nuclearOption.port}")
-    val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream()))
 
     val pingProc = PingPacketProcessor()
 
@@ -68,7 +62,45 @@ fun main() = runBlocking {
 
     val jobs = mutableListOf<Job>()
 
-    val cmdMgr = CommandManager(writer, scope = CoroutineScope(Dispatchers.Default))
+    lateinit var cmdMgr: CommandManager
+
+    val ignoreNextBan = AtomicBoolean(false)
+
+    val client = ManagedSocket(
+        host = config.nuclearOption.host,
+        port = config.nuclearOption.port,
+        onConnected = {
+            println("[Edge] Connected to game")
+        },
+        onMessage = {client, line ->
+            println("[Edge] Game says $line")
+            var outPacket: GamePacket? = null
+            when (val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)) {
+                is PingPacket ->outPacket = pingProc.processPacket(packet)
+                is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
+                is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
+                is LogEntryPacket -> logEntryProcessor(packet, grpcStub, ignoreNextBan)
+                is ResponsePacket -> cmdMgr.onReceivePacket(packet)
+                is LinkPacket -> sendLink(packet, grpcStub)
+            }
+            if (outPacket != null) {
+                try {
+                    client.sendWithWriter(Json.encodeToString(outPacket))
+                } catch (_: NotConnectedException) {}
+            }
+        },
+        onDisconnected = {
+            println("[Edge] Game disconnected")
+        },
+        onError = {e ->
+            println("[Edge] Error in game Socket: ${e.message}")
+            if (e is ConnectException) return@ManagedSocket
+            e.printStackTrace()
+        }
+    )
+    client.connect()
+
+    cmdMgr = CommandManager(client, scope = CoroutineScope(Dispatchers.Default))
     cmdMgr.start()
 
     jobs.add (launch (Dispatchers.IO){
@@ -93,7 +125,11 @@ fun main() = runBlocking {
                     ) else listOf(ban.steamID.toString()),
                     result = false
                 )
+                if (!ignoreNextBan.compareAndSet(expectedValue = false, newValue = true)){
+                    throw Exception("Ban was forwarded when ignoreNextBan is true")
+                }
                 cmdMgr.enqueueCommand(banCommandPacket)
+                println("[Edge] Game banned by Central request: $banCommandPacket")
             }
         }
     })
@@ -103,7 +139,6 @@ fun main() = runBlocking {
             val resultFlow = MutableSharedFlow<CommandResult>(extraBufferCapacity = 100)
             val commandFlow: Flow<Command> = grpcStub.subscribeToCommands(resultFlow)
 
-            // Collect incoming commands
             commandFlow.collect { command ->
                 val commandPacket = CommandPacket(
                     commandName = command.name,
@@ -111,7 +146,8 @@ fun main() = runBlocking {
                     result = command.result
                 )
 
-                // Enqueue/execute command
+                println("Received command ${command.name} from central with arguments ${command.argumentsList}")
+
                 val response: ResponsePacket? = cmdMgr.enqueueCommand(commandPacket)
 
                 var resultBuilder = CommandResult.newBuilder()
@@ -123,34 +159,6 @@ fun main() = runBlocking {
             }
         }
     })
-
-    jobs.add(launch(Dispatchers.IO) {
-            retryWithBackoff {
-                    val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-                    var line: String?
-                    while (reader.readLine().also { line = it } != null && isActive) {
-                        println("[Edge] Game says $line")
-                        if (line == null) continue
-                        var outPacket: GamePacket? = null
-                        when (val packet = serverJsonCommunicator.decodeFromString<GamePacket>(line)) {
-                            is PingPacket -> {
-                                outPacket = pingProc.processPacket(packet)
-                            }
-
-                            is ChatLogPacket -> emitChatLog(chatLogsFlow, packet)
-                            is CommandPacket -> throw Exception("Command received; this is an outgoing-only packet for the agent.")
-                            is LogEntryPacket -> logEntryProcessor(packet, grpcStub)
-                            is ResponsePacket -> cmdMgr.onReceivePacket(packet)
-                            is LinkPacket -> sendLink(packet, grpcStub)
-                        }
-                        if (outPacket != null) {
-                            writer.write(Json.encodeToString(outPacket))
-                            writer.newLine()
-                            writer.flush()
-                        }
-                    }
-            }
-        })
 
     jobs.add(
         launch {
@@ -172,24 +180,10 @@ fun main() = runBlocking {
         }
     )
 
-    jobs.add(launch(Dispatchers.IO) {
-        while (isActive) {
-            try {
-//                println("[Edge] sending ping to game")
-                if (!pingProc.sendNewPing(writer)) break
-                delay(config.central.pingDelay.toLong().seconds)
-            } catch (e: Exception) {
-                println("[Edge] Ping failed: ${e.message}")
-            }
-        }
-        println("[Edge] game stopped responding.")
-    })
-
     Runtime.getRuntime().addShutdownHook(Thread {
-        runBlocking { cleanup(jobs, socket, channel, cmdMgr) }
+        runBlocking { cleanup(jobs, client, channel, cmdMgr) }
     })
 
-    // Wait until either one of the jobs fail.
     select {
         jobs.forEach { job ->
             job.onJoin { }
@@ -198,7 +192,7 @@ fun main() = runBlocking {
 
 private suspend fun cleanup(
     jobs: List<Job>,
-    socket: Socket,
+    client: ManagedSocket,
     channel: ManagedChannel,
     cmdMgr: CommandManager
 ) {
@@ -207,19 +201,19 @@ private suspend fun cleanup(
         job.cancelAndJoin()
     }
     cmdMgr.stop()
-    if (!socket.isClosed) withContext(Dispatchers.IO) {
-        socket.close()
-    }
+    client.cancel()
     channel.shutdownNow()
 }
 
 suspend fun <T> retryWithBackoff(
     initialDelay: Int = 1,
     maxDelay: Int = 60,
+    maxRetries: Int? = null,
     factor: Double = 2.0,
     block: suspend () -> T
 ): T {
     var currentDelay = initialDelay
+    var currentRetries = 0
 
     while (currentCoroutineContext().isActive) {
         try {
@@ -227,7 +221,12 @@ suspend fun <T> retryWithBackoff(
         } catch (e: CancellationException){
             throw e
         } catch (e: Exception) {
+            if (maxRetries == null || currentRetries == maxRetries) {
+                throw e
+            }
             println("Retrying in $currentDelay seconds after error: ${e.message}")
+//            e.printStackTrace()
+            currentRetries++
         }
         delay(currentDelay.seconds)
         currentDelay = (currentDelay * factor).toInt().coerceAtMost(maxDelay)

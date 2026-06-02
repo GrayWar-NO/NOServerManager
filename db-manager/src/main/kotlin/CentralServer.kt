@@ -1,5 +1,8 @@
 package com.graywar.noServerManager.dbManager
 
+import com.graywar.noServerManager.dbManager.API.ApiConfig
+import com.graywar.noServerManager.dbManager.API.GwApi
+import com.graywar.noServerManager.dbManager.API.createModule
 import com.graywar.noServerManager.dbManager.Discord.Discord
 import com.graywar.noServerManager.dbManager.Discord.DiscordConfig
 import io.grpc.ServerInterceptors
@@ -8,10 +11,12 @@ import com.sksamuel.hoplite.addFileSource
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.netty.shaded.io.netty.handler.ssl.ClientAuth
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
-data class HostConfig(val port: Int, val db: DataBaseConfig, val discord: DiscordConfig)
+data class HostConfig(val port: Int, val db: DataBaseConfig, val discord: DiscordConfig, val api: ApiConfig)
 
 
 class CentralServer {
@@ -23,6 +28,7 @@ class CentralServer {
     private val db = DB(config.db)
 
     private val edgeAgent = EdgeAgentServiceImpl(db)
+    private val banListGenerator = BanListGeneratorServiceImpl(db)
 
     private val discord = Discord(config.discord, config.db, edgeAgent)
 
@@ -43,7 +49,10 @@ class CentralServer {
                 AgentIdInterceptor()
             )
         )
+        .addService(banListGenerator)
         .build()
+
+    private val api = GwApi(config.api)
 
     fun start() = runBlocking {
         server.start()
@@ -53,6 +62,7 @@ class CentralServer {
             edgeAgent.setTKCallback(discord.teamKillExt::sendTeamKill)
             edgeAgent.setLinkCallback(discord.linkExt::newLink)
         }
+        embeddedServer(Netty, config.api.port, module = createModule(api)).start()
         println("[Central] gRPC server started on ${config.port}")
         server.awaitTermination()
     }

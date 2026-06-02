@@ -1,0 +1,36 @@
+services:
+  edge-agent:
+    image: grayWar/edge-agent:latest
+    container_name: edge-agent
+    restart: unless-stopped
+    volumes:
+      - ./edge-agent/CA:/app/CA
+      - ./edge-agent/edge-agent.conf:/app/edge-agent.conf
+  nuclear-option-server-compose:
+    image: grayWar/no-server:latest
+    container_name: no-server
+    restart: unless-stopped
+    tty: true
+
+    ports:
+      - "27015:27015/udp"
+      - "7777:7777/udp"
+      - "7778:7778/udp"
+
+    volumes:
+      # BepInEx config files (settings.json, etc.)
+      - ./config/BepInEx/config:/home/steam/Steam/steamapps/common/NuclearOptionServer/BepInEx/config
+
+      # Dedicated server JSON config
+      - ./config/DedicatedServerConfig.json:/home/steam/Steam/steamapps/common/NuclearOptionServer/DedicatedServerConfig.json
+
+      # Ban list file
+      - ./config/ban_list.txt:/home/steam/Steam/steamapps/common/NuclearOptionServer/ban_list.txt
+
+      # User missions (everything inside the folder is copied verbatim)
+      - ./config/missions:/home/steam/NuclearOption-Missions
+
+      # BepInEx plugins
+      - ./config/BepInEx/plugins:/home/steam/Steam/steamapps/common/NuclearOptionServer/BepInEx/plugins
+
+      - ./config/BepInEx/LogOutput.log:/home/steam/Steam/steamapps/common/NuclearOptionServer/BepInEx/LogOutput.log

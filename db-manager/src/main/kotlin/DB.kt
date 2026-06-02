@@ -51,6 +51,7 @@ class DB() {
             SchemaUtils.create(NoTrack)
             SchemaUtils.create(Warns)
             SchemaUtils.create(DiscordPlayers)
+            SchemaUtils.create(Donations)
         }
     }
 
@@ -109,9 +110,12 @@ class DB() {
         return result[ServerMissions.id]
     }
 
-    fun newServer(name: String) {
+    fun newServer(name: String, maxPlayers: Int) {
         transaction {
-            Servers.insert { it[Servers.name] = name }
+            Servers.insert {
+                it[Servers.name] = name
+                it[Servers.maxPlayers] = maxPlayers
+            }
         }
     }
 
@@ -271,6 +275,27 @@ class DB() {
         }
     }
 
+    fun playerJoinFaction(steamID: ULong, faction: String) {
+        transaction {
+            val row = MissionPlayers
+                .selectAll()
+                .where {
+                    (MissionPlayers.steamID eq steamID) and
+                            MissionPlayers.faction.isNull() and
+                            MissionPlayers.leaveTime.isNull() and
+                            MissionPlayers.score.isNull()
+                }
+                .orderBy(MissionPlayers.joinTime to SortOrder.DESC)
+                .firstOrNull()
+
+            if (row != null) {
+                MissionPlayers.update({ MissionPlayers.id eq row[MissionPlayers.id] }) {
+                    it[MissionPlayers.faction] = faction
+                }
+            }
+        }
+    }
+
     fun addKill(mission: Long, kill: KillLog) {
         transaction {
             Kills.insert {
@@ -308,6 +333,18 @@ class DB() {
         }
     }
 
+    fun addDonation(donorID: ULong, rcvId: ULong, amount: Int, time: Timestamp) {
+        transaction {
+            Donations.insert {
+                it[donatorSteamID] = donorID
+                it[receiverSteamID] = rcvId
+                it[Donations.amount] = amount
+                it[Donations.timestamp] = transformTimestamp(time)
+            }
+        }
+    }
+
+
     fun isUserInDb(discordID: String): Boolean{
         val result = transaction {
             DiscordPlayers.selectAll().where {
@@ -315,6 +352,12 @@ class DB() {
             }.count()
         }
         return (result == 1L)
+    }
+
+    fun getLinkedUsers(): Collection<String>{
+    return transaction {
+            DiscordPlayers.select(DiscordPlayers.discordName).asIterable().map { it[DiscordPlayers.discordName] }
+        }
     }
 
     fun getLastPlayerName(player: ULong): String{
@@ -339,7 +382,7 @@ class DB() {
     }
 
     fun getKillsForUser(steamID: ULong, pageNumber: Int, pageLength: Int = 10, playerOnly: Boolean = false): Pair<List<Kill>, Boolean> {
-        val condition = if (playerOnly) (Kills.killerID eq steamID) and Kills.killedID.isNotNull() else Kills.killerID eq steamID
+        val condition = if (playerOnly) (Kills.killerID eq steamID) and (Kills.killedName inList Aircraft.entries.map{ it.craft }) else Kills.killerID eq steamID
         val result = transaction {
             Kills
                 .select(Kills.killedID, Kills.killedName, Kills.weapon)
@@ -362,7 +405,7 @@ class DB() {
         val result = transaction{
             Kills
                 .select(Kills.killerID, Kills.killerName, Kills.weapon)
-                .where { Kills.killedID eq steamID }
+                .where { Kills.killedID eq steamID and (Kills.killedName inList Aircraft.entries.map { it.craft })}
                 .orderBy(Kills.time to SortOrder.DESC)
                 .offset((pageNumber * pageLength).toLong())
                 .limit(pageLength + 1)
@@ -406,7 +449,7 @@ class DB() {
 
     fun getWeaponsToKillsForUser(steamID: ULong, aircraftOnly: Boolean = false, playerOnly: Boolean = false): Map<String, Long>{
         var condition = Kills.killerID eq steamID
-        if (aircraftOnly){
+        if (aircraftOnly || playerOnly){
             condition = condition and (Kills.killedName inList Aircraft.entries.map { it.craft })
         }
         if (playerOnly) {
@@ -428,7 +471,7 @@ class DB() {
 
     fun getTargetsToKillsForUser(steamID: ULong, aircraftOnly: Boolean = false, playerOnly: Boolean = false): Map<String, Long>{
         var condition = Kills.killerID eq steamID
-        if (aircraftOnly){
+        if (aircraftOnly || playerOnly){
             condition = condition and (Kills.killedName inList Aircraft.entries.map { it.craft })
         }
         if (playerOnly) {
@@ -461,5 +504,15 @@ class DB() {
                 .count()
         }
         return kills.toDouble()/deaths.toDouble()
+    }
+
+    fun getBans(): List<Pair<ULong, String>>{
+        val bans = transaction {
+            Bans
+                .select(Bans.steamID, Bans.reason)
+                .where { Bans.endTime.isNull() or Bans.endTime.greater(Clock.System.now()) }
+                .toList()
+        }
+        return List(bans.size, { i -> Pair(bans[i][Bans.steamID], bans[i][Bans.reason]) })
     }
 }

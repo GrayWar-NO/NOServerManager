@@ -4,16 +4,20 @@ import com.google.protobuf.Timestamp
 import com.graywar.noServerManager.proto.*
 import kotlinx.serialization.*
 import java.time.Instant
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 enum class LogChannel{
     JoinLeave,
+    FactionJoin,
     MissionStatus,
     SortieStatus,
     Teamkill,
     Kill,
     Kick,
     Ban,
-    Warn
+    Warn,
+    Donate
 }
 
 
@@ -24,17 +28,27 @@ data class LogEntryPacket(
     val logText: String
 ) : GamePacket()
 
+@OptIn(ExperimentalAtomicApi::class)
 suspend fun logEntryProcessor(packet: LogEntryPacket,
-                              grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub){
+                              grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub,
+                              ignoreNextBan: AtomicBoolean
+){
     val result = when (packet.channel) {
         LogChannel.JoinLeave -> sendPlayerAct(packet, grpcStub)
+        LogChannel.FactionJoin -> sendPlayerJoinFac(packet, grpcStub)
         LogChannel.MissionStatus -> sendMission(packet, grpcStub)
         LogChannel.SortieStatus -> sendSortie(packet, grpcStub)
         LogChannel.Warn -> sendWarn(packet, grpcStub)
         LogChannel.Teamkill -> grpcStub.sendTeamKill(genKillLog(packet))
         LogChannel.Kill -> grpcStub.sendKill(genKillLog(packet))
         LogChannel.Kick -> sendKick(packet, grpcStub)
-        LogChannel.Ban -> sendBan(packet, grpcStub)
+        LogChannel.Ban -> {
+            if (ignoreNextBan.compareAndSet(expectedValue = true, newValue = false)) {
+                return
+            }
+            sendBan(packet, grpcStub)
+        }
+        LogChannel.Donate -> sendDonate(packet, grpcStub)
     }
     if (result == null || !result.ok) {println("[Edge] Failed processing log packet with text ${packet.logText} as ${packet.channel}")}
 }
@@ -53,6 +67,17 @@ suspend fun sendPlayerAct(packet: LogEntryPacket,
         .build()
     return grpcStub.sendPlayerActivity(request)
 }
+
+suspend fun sendPlayerJoinFac(packet: LogEntryPacket,
+                              grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
+    val values = packet.logText.split(":")
+    val request = FactionLog.newBuilder()
+        .setSteamID(values[0].toULong().toLong())
+        .setFaction(values[1])
+        .build()
+    return grpcStub.sendPlayerJoinFac(request)
+}
+
 
 suspend fun sendMission(packet: LogEntryPacket,
                         grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack {
@@ -84,7 +109,7 @@ suspend fun sendBan(packet: LogEntryPacket,
     if (packet.channel != LogChannel.Ban) throw Exception("Send ban failed: Packet is not a ban packet.")
     val values = packet.logText.split(':')
     val shouldBeBanned = values[0].toInt() != 0
-    if ((shouldBeBanned && values.size < 3) || values.size < 4) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)
+    if ((shouldBeBanned && values.size < 4) || values.size < 3) throw Exception("Send ban failed: Ban packet is invalid: " + packet.logText)
     val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
     val timestampEnd: Timestamp?
     if (values[2] == "") timestampEnd = null
@@ -99,13 +124,13 @@ suspend fun sendBan(packet: LogEntryPacket,
         timestampEnd = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond + (nHours * 3600)).build()
     }
 
-    val request = BanRequest.newBuilder()
+    val rb = BanRequest.newBuilder()
         .setShouldBeBanned(shouldBeBanned)
         .setSteamID(values[1].toULong().toLong())
-        .setReason(if (shouldBeBanned) values.drop(3).joinToString(":") else null)
         .setBanStart(timestampNow)
-        .setBanEnd(timestampEnd)
-        .build()
+    if (shouldBeBanned) rb.setReason(values.drop(3).joinToString(":"))
+    if (timestampEnd != null) rb.setBanEnd(timestampEnd)
+    val request = rb.build()
 
     return grpcStub.sendBan(request)
 }
@@ -161,3 +186,21 @@ fun genKillLog(packet: LogEntryPacket): KillLog{
         .build()
     return request
 }
+
+suspend fun sendDonate(packet: LogEntryPacket, grpcStub: EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineStub): Ack? {
+    val timestampNow = Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build()
+    val values = packet.logText.split(':')
+    val donorID: ULong = values[0].toULongOrNull() ?: 0UL
+    val rcvID: ULong = values[1].toULongOrNull() ?: 0UL
+    val amount: Int? = values[2].toIntOrNull()
+    if (amount == null || amount == 0) return null
+    val request = DonationLog.newBuilder()
+        .setTime(timestampNow)
+        .setDonatorSteamID(donorID.toLong())
+        .setReceiverSteamID(rcvID.toLong())
+        .setAmountMillions(amount)
+        .build()
+
+    return grpcStub.sendDonation(request)
+}
+
