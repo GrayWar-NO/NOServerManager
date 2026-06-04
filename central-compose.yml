@@ -1,6 +1,6 @@
 services:
   central:
-    image: grayWar/central:latest
+    image: graywarno/manager-central:latest
     container_name: gw_central
     volumes:
       - ./CA:/app/CA

@@ -1,13 +1,13 @@
 services:
   edge-agent:
-    image: grayWar/edge-agent:latest
+    image: graywarno/manager-edge:latest
     container_name: edge-agent
     restart: unless-stopped
     volumes:
       - ./edge-agent/CA:/app/CA
       - ./edge-agent/edge-agent.conf:/app/edge-agent.conf
   nuclear-option-server-compose:
-    image: grayWar/no-server:latest
+    image: graywarno/no-server:latest
     container_name: no-server
     restart: unless-stopped
     tty: true
