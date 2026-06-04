@@ -43,7 +43,7 @@ jobs:
             ${{ env.OWNER }}/manager-edge:${{ steps.tags.outputs.version }}
             ${{ env.OWNER }}/manager-edge:${{ steps.tags.outputs.channel }}
 
-      - name: Build and push manager-central image
+      - name: Build and push central image
         uses: docker/build-push-action@v6
         with:
           context: .

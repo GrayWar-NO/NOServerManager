@@ -58,11 +58,10 @@ In the `CA` subdir, you will need to create a CA authority (that's what `newCA.s
 there to configure it).
 Once that is done, create a server certificate with `newServerCert.sh`.
 
-You will also need the docker image for the central. Within this repo's root, you can do that by running
-`docker build -f central.Dockerfile -t grayWar/central:latest`.
+You will also need the docker image for the central. The provided `central-compose.yml` file already points to our
+latest release on docker hub.
 
-Once your central is configured and you have built or gotten the docker image for the central, you only need to
-`docker compose up -d`
+Once your central is configured and you only need to `docker compose up -d`!
 
 # Edge agent
 
@@ -83,16 +82,13 @@ processing.
 2. Add a server to your database, either manually or with `/newserver` in discord, and take note of it's ID  (it is
    incremental)
 3. Add the [required webhooks](#discord) in the central's config and restart it.
-4. Build or get the edge docker image (with `docker build -f edge.Dockerfile -t grayWar/edge-agent:latest`).
-5. Get an image of our [Nuclear Option docker container](https://github.com/GrayWar-NO/Docker_server). You will need to
-   configure it for use with [our server plugin](https://github.com/GrayWar-NO/GrayWar-Server-Plugin).
-6. In a folder, place the edge-compose.yml, a `config` folder (that's yhe config for the server itself), and an
+4. In a folder, place the edge-compose.yml, a `config` folder (that's the config for the [server image](https://github.com/GrayWar-NO/Docker_server)), and an
    `edge-agent` folder.
-7. In the `CA` folder of your central, generate a new set of keys with the name you gave your server at step 2.
-8. In the `edge-agent` folder, you will need to place your `edge-agent.conf` file, and a `CA` folder containing a copy
+5. In the `CA` folder of your central, generate a new set of keys with the name you gave your server at step 2.
+6. In the `edge-agent` folder, you will need to place your `edge-agent.conf` file, and a `CA` folder containing a copy
    of `ca.crt` as well as `servername.crt` and `servername.key`
-9. `docker compose up -d`
-10. enjoy!
+7. `docker compose up -d`
+8. enjoy!
 
  
 
