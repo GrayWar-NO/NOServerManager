@@ -1,20 +1,54 @@
-name: Docker Image CI
+name: Docker Release
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  release:
+    types: [published]
 
 jobs:
-
-  build:
-
+  build-and-push:
     runs-on: ubuntu-latest
 
+    env:
+      OWNER: ${{ secrets.DOCKERHUB_REPO_OWNER }}
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Edge image build
-      run: docker build . --file edge.Dockerfile --tag grayWar/edge-agent:$(date +%s)
-    - name: Central image build
-      run: docker build . --file central.Dockerfile --tag grayWar/central:$(date +%s)
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Compute tags
+        id: tags
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [[ "${{ github.event.release.prerelease }}" == "true" ]]; then
+            echo "channel=pre" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push edge image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: edge.Dockerfile
+          push: true
+          tags: |
+            ${{ env.OWNER }}/manager-edge:${{ steps.tags.outputs.version }}
+            ${{ env.OWNER }}/manager-edge:${{ steps.tags.outputs.channel }}
+
+      - name: Build and push manager-central image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: manager-central.Dockerfile
+          push: true
+          tags: |
+            ${{ env.OWNER }}/manager-central:${{ steps.tags.outputs.version }}
+            ${{ env.OWNER }}/manager-central:${{ steps.tags.outputs.channel }}
