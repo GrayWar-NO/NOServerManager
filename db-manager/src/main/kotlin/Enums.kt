@@ -21,5 +21,5 @@ fun isAircraft(name: String): Boolean{
 }
 
 fun toAircraft(name: String): Aircraft{
-    return Aircraft.valueOf(name)
+    return Aircraft.entries.first { it.craft == name }
 }
