@@ -444,7 +444,7 @@ class DB() {
                 )
         }
         val hasNext = sorties.size > pageLength
-        return Pair(emptyList(), hasNext)
+        return Pair(sorties, hasNext)
     }
 
     fun getWeaponsToKillsForUser(steamID: ULong, aircraftOnly: Boolean = false, playerOnly: Boolean = false): Map<String, Long>{

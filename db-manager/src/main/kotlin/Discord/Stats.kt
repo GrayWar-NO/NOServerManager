@@ -48,52 +48,52 @@ class StatsExtension(val db: DB) : Extension() {
                         getUserKills(false)
                     }
                 }
+            }
 
-                ephemeralSubCommand {
-                    name = Key("sorties")
-                    description = Key("Get your sortie history")
-                    action {
-                        val (steamID, linked) = checkUserLinked()
-                        if (!linked) return@action
-                        var pageNumber = 0
-                        var result = db.getSortiesForUser(steamID, pageNumber)
-                        respond {
-                            embed {
-                                title = "Your kills:"
-                                sortiesList(result.first, pageNumber)
-                            }
-                            components {
-                                ephemeralButton {
-                                    label = Key("Previous page")
-                                    check { if (pageNumber > 0) pass() else fail(Key("No previous page available")) }
-                                    action {
-                                        pageNumber--
-                                        result = db.getSortiesForUser(steamID, pageNumber)
-                                        edit { embed {
-                                            title = "Your kills:"
-                                            sortiesList(result.first, pageNumber)
-                                        } }
-                                    }
+            ephemeralSubCommand {
+                name = Key("sorties")
+                description = Key("Get your sortie history")
+                action {
+                    val (steamID, linked) = checkUserLinked()
+                    if (!linked) return@action
+                    var pageNumber = 0
+                    var result = db.getSortiesForUser(steamID, pageNumber)
+                    respond {
+                        embed {
+                            title = "Your sorties:"
+                            sortiesList(result.first, pageNumber)
+                        }
+                        components {
+                            ephemeralButton {
+                                label = Key("Previous page")
+                                check { if (pageNumber > 0) pass() else fail(Key("No previous page available")) }
+                                action {
+                                    pageNumber--
+                                    result = db.getSortiesForUser(steamID, pageNumber)
+                                    edit { embed {
+                                        title = "Your sorties:"
+                                        sortiesList(result.first, pageNumber)
+                                    } }
                                 }
-                                ephemeralButton {
-                                    label = Key("Next page")
-                                    check { if (result.second) pass() else fail(Key("No next page available")) }
-                                    action {
-                                        pageNumber++
-                                        result = db.getSortiesForUser(steamID, pageNumber)
-                                        edit { embed {
-                                            title = "Your kills:"
-                                            sortiesList(result.first, pageNumber)
-                                        } }
-                                    }
+                            }
+                            ephemeralButton {
+                                label = Key("Next page")
+                                check { if (result.second) pass() else fail(Key("No next page available")) }
+                                action {
+                                    pageNumber++
+                                    result = db.getSortiesForUser(steamID, pageNumber)
+                                    edit { embed {
+                                        title = "Your sorties:"
+                                        sortiesList(result.first, pageNumber)
+                                    } }
                                 }
                             }
                         }
-
                     }
-                }
 
+                }
             }
+
 
             ephemeralSubCommand {
                 name = Key("deaths")
