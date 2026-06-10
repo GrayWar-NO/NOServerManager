@@ -511,6 +511,7 @@ class DB() {
             Bans
                 .select(Bans.steamID, Bans.reason)
                 .where { Bans.endTime.isNull() or Bans.endTime.greater(Clock.System.now()) }
+                .orderBy(Bans.startTime to SortOrder.DESC)
                 .toList()
         }
         return List(bans.size, { i -> Pair(bans[i][Bans.steamID], bans[i][Bans.reason]) })

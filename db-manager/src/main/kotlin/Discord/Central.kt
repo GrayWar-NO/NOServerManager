@@ -62,7 +62,7 @@ class CreateMissionCommandArgs : Arguments() {
 }
 
 
-suspend fun CheckContext<*>.requireAnyRole(vararg roles: Snowflake) {
+internal suspend fun CheckContext<*>.requireAnyRole(vararg roles: Snowflake) {
     val member = userFor(event)?.asMemberOrNull(guildFor(event)?.id ?: return fail(Key("Guild only command")))
 
     val memberRoleIds = member?.roleIds ?: emptyList()
@@ -78,22 +78,10 @@ suspend fun CheckContext<*>.requireAnyRole(vararg roles: Snowflake) {
 class CentralServerExtension(
     val db: DB,
     val cbEdgeAgent: EdgeAgentServiceImpl,
-    adminRoleIDs: List<ULong>) : Extension() {
-    val adminRoles = adminRoleIDs.map { id -> Snowflake(id) }
+    val adminRoles: List<Snowflake>) : Extension() {
     override val name = "ping"
 
     override suspend fun setup() {
-        ephemeralSlashCommand {
-            name = Key("ping")
-            description = Key("Ping command")
-
-            action {
-                respond {
-                    content = "Pong!"
-                }
-            }
-        }
-
         publicSlashCommand {
             name = Key("servers")
             description = Key("Gets all servers")
