@@ -20,6 +20,8 @@ data class DataBaseConfig (val host: String, val port: Int, val name: String, va
 
 data class Kill(val name: String?, val weapon: String, val unit: String, val isAircraft: Boolean)
 data class Sortie(val aircraft: Aircraft, val start: Instant, val elapsed: Duration, val died: Boolean)
+data class Mission(val name: String, val server: String, val start: Instant)
+data class Ban(val user: ULong, val reason: String, val time: Instant)
 
 class DB() {
     private lateinit var config: DataBaseConfig
@@ -506,14 +508,48 @@ class DB() {
         return kills.toDouble()/deaths.toDouble()
     }
 
-    fun getBans(): List<Pair<ULong, String>>{
+    fun getAllBans(): List<Ban>{
         val bans = transaction {
             Bans
-                .select(Bans.steamID, Bans.reason)
+                .select(Bans.steamID, Bans.reason, Bans.startTime)
                 .where { Bans.endTime.isNull() or Bans.endTime.greater(Clock.System.now()) }
                 .orderBy(Bans.startTime to SortOrder.DESC)
                 .toList()
         }
-        return List(bans.size, { i -> Pair(bans[i][Bans.steamID], bans[i][Bans.reason]) })
+        return bans.map {
+            Ban(
+                it[Bans.steamID],
+                it[Bans.reason],
+                it[Bans.startTime],
+            )
+        }
     }
+
+    fun getMissions(user: ULong?): List<Mission> {
+        val data = if (user == null) {
+            transaction {
+                (ServerMissions innerJoin Missions innerJoin Servers)
+                    .select(ServerMissions.columns - ServerMissions.id + Missions.name - ServerMissions.server + Servers.name)
+                    .orderBy(ServerMissions.startTime to SortOrder.DESC)
+                    .toList()
+            }
+        } else {
+            transaction {
+                (ServerMissions innerJoin MissionPlayers innerJoin Missions innerJoin Servers)
+                    .select(ServerMissions.columns - ServerMissions.id + Missions.name - ServerMissions.server + Servers.name)
+                    .where { MissionPlayers.steamID eq user }
+                    .withDistinct()
+                    .orderBy(ServerMissions.startTime to SortOrder.DESC)
+                    .toList()
+            }
+        }
+        return data.map {
+            Mission(
+                it[Missions.name],
+                it[Servers.name],
+                it[ServerMissions.startTime]
+            )
+        }
+    }
+
 }

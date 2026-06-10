@@ -7,10 +7,10 @@ import com.graywar.noServerManager.proto.BanListGeneratorGrpcKt
 
 class BanListGeneratorServiceImpl(private val db: DB): BanListGeneratorGrpcKt.BanListGeneratorCoroutineImplBase() {
     override suspend fun getBanList(request: Empty): BanList {
-        val bans = db.getBans()
+        val bans = db.getAllBans()
         val requestBuilder = BanList.newBuilder()
         for (ban in bans) {
-            requestBuilder.addBans(Ban.newBuilder().setSteamID(ban.first.toLong()).setReason(ban.second))
+            requestBuilder.addBans(Ban.newBuilder().setSteamID(ban.user.toLong()).setReason(ban.reason))
         }
         return requestBuilder.build()
     }
