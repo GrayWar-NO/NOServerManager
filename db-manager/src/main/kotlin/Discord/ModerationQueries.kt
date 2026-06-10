@@ -2,6 +2,7 @@ package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.dbManager.Ban
 import com.graywar.noServerManager.dbManager.DB
+import com.graywar.noServerManager.dbManager.Kick
 import com.graywar.noServerManager.dbManager.Mission
 import dev.kord.common.entity.Snowflake
 import dev.kord.rest.builder.message.EmbedBuilder
@@ -54,9 +55,28 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
                 respond { pagedList(data) { pd, p -> missionList(pd, userName, p) } }
             }
         }
+        ephemeralSlashCommand(::UserForModCommandArg) {
+            name = Key("Kicks")
+            description = Key("Get kick history")
+
+            check {
+                requireAnyRole(*adminRoles.toTypedArray())
+            }
+
+            action {
+                try {
+                    val steamID = arguments.user?.toULongOrNull()
+                    val userName: String? = if (steamID == null) null else db.getLastPlayerName(steamID)
+                    val data = db.getKicks(steamID)
+                    respond { pagedList(data) { pd, p -> kickList(pd, userName, p) } }
+                } catch (e: Exception) {
+                e.printStackTrace()
+                throw e
+                }
+            }
+        }
 
         /*      TODO
-                 Kick history (optional user)
                  Warn history (optional user)
         */
 
@@ -79,4 +99,17 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
         }
         description = content
     }
+
+    fun EmbedBuilder.kickList(data: List<Kick>,user: String?, pageNumber: Int) {
+        title = "Kick History${if (user == null) "" else " for $user"}:"
+        var content = ""
+        for ((i, k) in data.withIndex()) {
+            content += if (user == null)
+                "${i + (pageNumber * 10)}: ${k.username}(${k.steamID}) got kicked on <t:${k.time.epochSeconds}:f> for ${k.reason}.\n"
+            else
+                "${i + (pageNumber * 10)}: kicked on <t:${k.time.epochSeconds}:f> for ${k.reason}.\n"
+        }
+        description = content
+    }
+
 }

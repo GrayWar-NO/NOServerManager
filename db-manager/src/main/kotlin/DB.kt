@@ -22,6 +22,7 @@ data class Kill(val name: String?, val weapon: String, val unit: String, val isA
 data class Sortie(val aircraft: Aircraft, val start: Instant, val elapsed: Duration, val died: Boolean)
 data class Mission(val name: String, val server: String, val start: Instant)
 data class Ban(val user: ULong, val username: String, val reason: String, val time: Instant)
+data class Kick(val steamID: ULong, val username: String?, val reason: String, val time: Instant)
 
 class DB() {
     private lateinit var config: DataBaseConfig
@@ -148,6 +149,7 @@ class DB() {
         }
     }
 
+    @Suppress("unused")
     fun deleteOldMessages() {
         val cutoff: Instant = Clock.System.now() - 90.days
         transaction {
@@ -571,8 +573,8 @@ class DB() {
                 (ServerMissions innerJoin MissionPlayers innerJoin Missions innerJoin Servers)
                     .select(ServerMissions.columns - ServerMissions.id + Missions.name - ServerMissions.server + Servers.name)
                     .where { MissionPlayers.steamID eq user }
-                    .withDistinct()
                     .orderBy(ServerMissions.startTime to SortOrder.DESC)
+                    .distinct()
                     .toList()
             }
         }
@@ -585,4 +587,32 @@ class DB() {
         }
     }
 
+    fun getKicks(user: ULong?): List<Kick>{
+        val kicks = if (user == null){
+            transaction {
+                Kicks
+                    .leftJoin(MissionPlayers, { Kicks.steamID }, { MissionPlayers.steamID })
+                    .select(Kicks.columns - Kicks.id + MissionPlayers.name)
+                    .withDistinctOn(Kicks.id)
+                    .orderBy(Kicks.id to SortOrder.DESC, Kicks.time to SortOrder.DESC)
+                    .toList()
+            }
+        } else {
+            transaction {
+                Kicks
+                    .select(Kicks.columns - Kicks.id)
+                    .where { Kicks.steamID eq user }
+                    .orderBy(Kicks.time to SortOrder.DESC)
+                    .toList()
+            }
+        }
+        return kicks.map {
+            Kick(
+                it[Kicks.steamID],
+                if (user == null) it[MissionPlayers.name] else null,
+                it[Kicks.reason],
+                it[Kicks.time]
+            )
+        }
+    }
 }
