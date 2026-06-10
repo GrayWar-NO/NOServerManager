@@ -36,7 +36,7 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
 
             action {
                 val bans = db.getAllBans()
-                respond { pagedList(bans) { pd, p -> banList(pd, db, p) } }
+                respond { pagedList(bans) { pd, p -> banList(pd, p) } }
             }
         }
         ephemeralSlashCommand(::UserForModCommandArg) {
@@ -62,11 +62,11 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
 
     }
 
-    fun EmbedBuilder.banList(data: List<Ban>, db: DB, pageNumber: Int) {
+    fun EmbedBuilder.banList(data: List<Ban>, pageNumber: Int) {
         title = "Ban history:"
         var content = ""
         for ((i, ban) in data.withIndex()) {
-            content += "${i + (pageNumber * 10)}: ${db.getLastPlayerName(ban.user)}(${ban.user}) was banned for ${ban.reason} on <t:${ban.time.epochSeconds}:f>.\n"
+            content += "${i + (pageNumber * 10)}: ${ban.username}(${ban.user}) was banned for ${ban.reason} on <t:${ban.time.epochSeconds}:f>.\n"
         }
         description = content
     }
