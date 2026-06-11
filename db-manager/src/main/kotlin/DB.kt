@@ -21,8 +21,7 @@ data class DataBaseConfig(val host: String, val port: Int, val name: String, val
 data class Kill(val name: String?, val weapon: String, val unit: String, val isAircraft: Boolean)
 data class Sortie(val aircraft: Aircraft, val start: Instant, val elapsed: Duration, val died: Boolean)
 data class Mission(val name: String, val server: String, val start: Instant)
-data class Ban(val user: ULong, val username: String, val reason: String, val time: Instant)
-data class Kick(val steamID: ULong, val username: String?, val reason: String, val time: Instant)
+data class UserReasonTime(val steamID: ULong, val username: String?, val reason: String, val time: Instant)
 
 class DB() {
     private lateinit var config: DataBaseConfig
@@ -537,7 +536,7 @@ class DB() {
         return kills.toDouble() / deaths.toDouble()
     }
 
-    fun getAllBans(): List<Ban> {
+    fun getAllBans(): List<UserReasonTime> {
         val bans = transaction {
             Bans
                 .leftJoin(MissionPlayers, { Bans.steamID }, { MissionPlayers.steamID })
@@ -551,7 +550,7 @@ class DB() {
         }
         return bans.map {
             @Suppress("USELESS_ELVIS")
-            Ban(
+            UserReasonTime(
                 it[Bans.steamID],
                 it[MissionPlayers.name] ?: "Unknown user",
                 it[Bans.reason],
@@ -587,14 +586,14 @@ class DB() {
         }
     }
 
-    fun getKicks(user: ULong?): List<Kick>{
+    fun getKicks(user: ULong?): List<UserReasonTime>{
         val kicks = if (user == null){
             transaction {
                 Kicks
                     .leftJoin(MissionPlayers, { Kicks.steamID }, { MissionPlayers.steamID })
                     .select(Kicks.columns - Kicks.id + MissionPlayers.name)
                     .withDistinctOn(Kicks.id)
-                    .orderBy(Kicks.id to SortOrder.DESC, Kicks.time to SortOrder.DESC)
+                    .orderBy(Kicks.id to SortOrder.DESC)
                     .toList()
             }
         } else {
@@ -607,7 +606,7 @@ class DB() {
             }
         }
         return kicks.map {
-            Kick(
+            UserReasonTime(
                 it[Kicks.steamID],
                 if (user == null) it[MissionPlayers.name] else null,
                 it[Kicks.reason],
@@ -615,4 +614,31 @@ class DB() {
             )
         }
     }
+
+    fun getWarns(user: ULong?): List<UserReasonTime>{
+        val warns = if (user == null) {
+            Warns
+                .leftJoin(MissionPlayers, {Warns.steamID}, { MissionPlayers.steamID})
+                .select(Warns.columns - Warns.id + MissionPlayers.name)
+                .withDistinctOn(Warns.id)
+                .orderBy(Warns.id to SortOrder.DESC)
+        } else {
+            transaction {
+                Warns
+                    .select(Warns.columns - Warns.id)
+                    .where { Warns.steamID eq user }
+                    .orderBy(Warns.time to SortOrder.DESC)
+                    .toList()
+            }
+        }
+        return warns.map{
+            UserReasonTime(
+                it[Warns.steamID],
+                if (user == null) it[MissionPlayers.name] else null,
+                it[Warns.reason],
+                it[Warns.time]
+            )
+        }
+    }
+
 }

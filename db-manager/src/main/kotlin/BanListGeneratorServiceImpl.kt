@@ -10,7 +10,7 @@ class BanListGeneratorServiceImpl(private val db: DB): BanListGeneratorGrpcKt.Ba
         val bans = db.getAllBans()
         val requestBuilder = BanList.newBuilder()
         for (ban in bans) {
-            requestBuilder.addBans(Ban.newBuilder().setSteamID(ban.user.toLong()).setReason(ban.reason))
+            requestBuilder.addBans(Ban.newBuilder().setSteamID(ban.steamID.toLong()).setReason(ban.reason))
         }
         return requestBuilder.build()
     }

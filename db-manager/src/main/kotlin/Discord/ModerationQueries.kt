@@ -1,8 +1,7 @@
 package com.graywar.noServerManager.dbManager.Discord
 
-import com.graywar.noServerManager.dbManager.Ban
 import com.graywar.noServerManager.dbManager.DB
-import com.graywar.noServerManager.dbManager.Kick
+import com.graywar.noServerManager.dbManager.UserReasonTime
 import com.graywar.noServerManager.dbManager.Mission
 import dev.kord.common.entity.Snowflake
 import dev.kord.rest.builder.message.EmbedBuilder
@@ -18,8 +17,11 @@ class UserForModCommandArg : Arguments() {
         name = Key("user")
         description = Key("SteamID of the user")
         validate {
-            if (value == null) pass()
-            else value!!.toULongOrNull() != null
+            when {
+                value == null -> pass()
+                value!!.toULongOrNull() != null -> pass()
+                else -> fail(Key("User must be a valid SteamID"))
+            }
         }
     }
 }
@@ -64,29 +66,34 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
             }
 
             action {
-                try {
-                    val steamID = arguments.user?.toULongOrNull()
-                    val userName: String? = if (steamID == null) null else db.getLastPlayerName(steamID)
-                    val data = db.getKicks(steamID)
-                    respond { pagedList(data) { pd, p -> kickList(pd, userName, p) } }
-                } catch (e: Exception) {
-                e.printStackTrace()
-                throw e
-                }
+                val steamID = arguments.user?.toULongOrNull()
+                val userName: String? = if (steamID == null) null else db.getLastPlayerName(steamID)
+                val data = db.getKicks(steamID)
+                respond { pagedList(data) { pd, p -> kickList(pd, userName, p) } }
             }
         }
+        ephemeralSlashCommand(::UserForModCommandArg) {
+            name = Key("Warns")
+            description = Key("Get warn history")
 
-        /*      TODO
-                 Warn history (optional user)
-        */
+            check {
+                requireAnyRole(*adminRoles.toTypedArray())
+            }
 
+            action {
+                val steamID = arguments.user?.toULongOrNull()
+                val userName: String? = if (steamID == null) null else db.getLastPlayerName(steamID)
+                val data = db.getWarns(steamID)
+                respond { pagedList(data) { pd, p -> warnList(pd, userName, p) } }
+            }
+        }
     }
 
-    fun EmbedBuilder.banList(data: List<Ban>, pageNumber: Int) {
+    fun EmbedBuilder.banList(data: List<UserReasonTime>, pageNumber: Int) {
         title = "Ban history:"
         var content = ""
         for ((i, ban) in data.withIndex()) {
-            content += "${i + (pageNumber * 10)}: ${ban.username}(${ban.user}) was banned for ${ban.reason} on <t:${ban.time.epochSeconds}:f>.\n"
+            content += "${i + (pageNumber * 10)}: ${ban.username}(${ban.steamID}) was banned for ${ban.reason} on <t:${ban.time.epochSeconds}:f>.\n"
         }
         description = content
     }
@@ -100,7 +107,7 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
         description = content
     }
 
-    fun EmbedBuilder.kickList(data: List<Kick>,user: String?, pageNumber: Int) {
+    fun EmbedBuilder.kickList(data: List<UserReasonTime>, user: String?, pageNumber: Int) {
         title = "Kick History${if (user == null) "" else " for $user"}:"
         var content = ""
         for ((i, k) in data.withIndex()) {
@@ -108,6 +115,18 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
                 "${i + (pageNumber * 10)}: ${k.username}(${k.steamID}) got kicked on <t:${k.time.epochSeconds}:f> for ${k.reason}.\n"
             else
                 "${i + (pageNumber * 10)}: kicked on <t:${k.time.epochSeconds}:f> for ${k.reason}.\n"
+        }
+        description = content
+    }
+
+    fun EmbedBuilder.warnList(data: List<UserReasonTime>, user: String?, pageNumber: Int) {
+        title = "Warn History${if (user == null) "" else " for $user"}:"
+        var content = ""
+        for ((i, k) in data.withIndex()) {
+            content += if (user == null)
+                "${i + (pageNumber * 10)}: ${k.username}(${k.steamID}) got warned on <t:${k.time.epochSeconds}:f> for ${k.reason}.\n"
+            else
+                "${i + (pageNumber * 10)}: warned on <t:${k.time.epochSeconds}:f> for ${k.reason}.\n"
         }
         description = content
     }
