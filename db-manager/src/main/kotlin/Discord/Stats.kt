@@ -9,8 +9,6 @@ import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.application.slash.EphemeralSlashCommandContext
 import dev.kordex.core.commands.application.slash.ephemeralSubCommand
 import dev.kordex.core.commands.application.slash.group
-import dev.kordex.core.components.components
-import dev.kordex.core.components.ephemeralButton
 import dev.kordex.core.components.forms.ModalForm
 import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.ephemeralSlashCommand
@@ -56,41 +54,13 @@ class StatsExtension(val db: DB) : Extension() {
                 action {
                     val (steamID, linked) = checkUserLinked()
                     if (!linked) return@action
-                    var pageNumber = 0
-                    var result = db.getSortiesForUser(steamID, pageNumber)
                     respond {
-                        embed {
-                            title = "Your sorties:"
-                            sortiesList(result.first, pageNumber)
-                        }
-                        components {
-                            ephemeralButton {
-                                label = Key("Previous page")
-                                check { if (pageNumber > 0) pass() else fail(Key("No previous page available")) }
-                                action {
-                                    pageNumber--
-                                    result = db.getSortiesForUser(steamID, pageNumber)
-                                    edit { embed {
-                                        title = "Your sorties:"
-                                        sortiesList(result.first, pageNumber)
-                                    } }
-                                }
-                            }
-                            ephemeralButton {
-                                label = Key("Next page")
-                                check { if (result.second) pass() else fail(Key("No next page available")) }
-                                action {
-                                    pageNumber++
-                                    result = db.getSortiesForUser(steamID, pageNumber)
-                                    edit { embed {
-                                        title = "Your sorties:"
-                                        sortiesList(result.first, pageNumber)
-                                    } }
-                                }
-                            }
-                        }
+                        pagedList(
+                            getPage = { page, pageSize ->
+                                db.getSortiesForUser(steamID, page, pageSize)
+                            },
+                        ) { sorties, page -> sortiesList(sorties, page) }
                     }
-
                 }
             }
 
@@ -98,48 +68,16 @@ class StatsExtension(val db: DB) : Extension() {
             ephemeralSubCommand {
                 name = Key("deaths")
                 description = Key("Get all the times you died")
-
                 action {
                     val (steamID, linked) = checkUserLinked()
                     if (!linked) return@action
-
-                    var pageNumber = 0
-                    var result = db.getDeathsForUser(steamID, pageNumber)
                     respond {
-                        embed {
-                            title = "Your deaths:"
-                            killsList(result.first, pageNumber)
-                        }
-                        components {
-                            ephemeralButton {
-                                label = Key("Previous page")
-                                check { if (pageNumber > 0) pass() else fail(Key("No previous page available")) }
-                                action {
-                                    pageNumber--
-                                    result = db.getDeathsForUser(steamID, pageNumber)
-                                    edit { embed {
-                                        title = "Your deaths:"
-                                        killsList(result.first, pageNumber)
-                                    } }
-                                }
-                            }
-                            ephemeralButton {
-                                label = Key("Next page")
-                                check { if (result.second) pass() else fail(Key("No next page available")) }
-                                action {
-                                    pageNumber++
-                                    result = db.getDeathsForUser(steamID, pageNumber)
-                                    edit { embed {
-                                        title = "Your deaths:"
-                                        killsList(result.first, pageNumber)
-                                    } }
-                                }
-                            }
-                        }
+                        pagedList(
+                            getPage = { page, pageSize -> db.getDeathsForUser(steamID, page, pageSize) },
+                        ) { data, page -> killsList(data, page) }
                     }
                 }
             }
-
         }
 
         ephemeralSlashCommand {
@@ -303,6 +241,7 @@ class StatsExtension(val db: DB) : Extension() {
     }
 
     fun EmbedBuilder.sortiesList(result: List<Sortie>, pageNumber: Int) {
+        title = "Your sorties:"
         var content = ""
         for ((i, sortie) in result.withIndex()) {
             content += "${i + (pageNumber * 10)}: ${sortie.aircraft} sortie started on <t:${sortie.start.epochSeconds}:d> at <t:${sortie.start.epochSeconds}:t> for ${sortie.elapsed}.\n"
@@ -334,39 +273,12 @@ class StatsExtension(val db: DB) : Extension() {
     {
         val (steamID, linked) = checkUserLinked()
         if (!linked) return
-
-        var pageNumber = 0
-        var result = db.getKillsForUser(steamID, pageNumber, playerOnly = !all)
         respond {
-            embed {
+            pagedList(
+                getPage = {page, pageSize -> db.getKillsForUser(steamID, page, pageSize, !all) }
+            ) {data, page ->
                 title = "Your kills:"
-                killsList(result.first, pageNumber)
-            }
-            components {
-                ephemeralButton {
-                    label = Key("Previous page")
-                    check { if (pageNumber > 0) pass() else fail(Key("No previous page available")) }
-                    action {
-                        pageNumber--
-                        result = db.getKillsForUser(steamID, pageNumber, playerOnly = !all)
-                        edit { embed {
-                            title = "Your kills:"
-                            killsList(result.first, pageNumber)
-                        } }
-                    }
-                }
-                ephemeralButton {
-                    label = Key("Next page")
-                    check { if (result.second) pass() else fail(Key("No next page available")) }
-                    action {
-                        pageNumber++
-                        result = db.getKillsForUser(steamID, pageNumber, playerOnly = !all)
-                        edit { embed {
-                            title = "Your kills:"
-                            killsList(result.first, pageNumber)
-                        } }
-                    }
-                }
+                killsList(data, page)
             }
         }
     }
