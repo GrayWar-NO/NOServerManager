@@ -74,7 +74,7 @@ suspend fun <T> FollowupMessageCreateBuilder.pagedList(
            val start = page * pageSize
            val end = min(start + pageSize, data.size)
            val data = data.subList(start, end)
-           Pair(data, end != data.size)
+           Pair(data, end == data.size)
        },
        embedBuilder = embedBuilder,
    )
