@@ -615,13 +615,16 @@ class DB() {
         }
     }
 
-    fun getWarns(user: ULong?): List<UserReasonTime>{
+    fun getWarns(user: ULong?): List<UserReasonTime> {
         val warns = if (user == null) {
-            Warns
-                .leftJoin(MissionPlayers, {Warns.steamID}, { MissionPlayers.steamID})
-                .select(Warns.columns - Warns.id + MissionPlayers.name)
-                .withDistinctOn(Warns.id)
-                .orderBy(Warns.id to SortOrder.DESC)
+            transaction {
+                Warns
+                    .leftJoin(MissionPlayers, { Warns.steamID }, { MissionPlayers.steamID })
+                    .select(Warns.columns - Warns.id + MissionPlayers.name)
+                    .withDistinctOn(Warns.id)
+                    .orderBy(Warns.id to SortOrder.DESC)
+                    .toList()
+            }
         } else {
             transaction {
                 Warns
@@ -631,7 +634,7 @@ class DB() {
                     .toList()
             }
         }
-        return warns.map{
+        return warns.map {
             UserReasonTime(
                 it[Warns.steamID],
                 if (user == null) it[MissionPlayers.name] else null,
