@@ -22,6 +22,7 @@ data class Kill(val name: String?, val weapon: String, val unit: String, val isA
 data class Sortie(val aircraft: Aircraft, val start: Instant, val elapsed: Duration, val died: Boolean)
 data class Mission(val name: String, val server: String, val start: Instant)
 data class UserReasonTime(val steamID: ULong, val username: String?, val reason: String, val time: Instant)
+data class UserCount(val steamID: ULong, val username: String?, val count: UInt)
 
 class DB() {
     private lateinit var config: DataBaseConfig
@@ -586,8 +587,8 @@ class DB() {
         }
     }
 
-    fun getKicks(user: ULong?): List<UserReasonTime>{
-        val kicks = if (user == null){
+    fun getKicks(user: ULong?): List<UserReasonTime> {
+        val kicks = if (user == null) {
             transaction {
                 Kicks
                     .leftJoin(MissionPlayers, { Kicks.steamID }, { MissionPlayers.steamID })
@@ -644,4 +645,72 @@ class DB() {
         }
     }
 
+    fun getKicksLeaderboard(): List<UserCount> {
+        return transaction {
+            val count = Kicks.id.countDistinct()
+            Kicks
+                .join(
+                    MissionPlayers,
+                    JoinType.LEFT,
+                    additionalConstraint = {
+                        Kicks.steamID eq MissionPlayers.steamID
+                    }
+                )
+                .select(
+                    Kicks.steamID,
+                    MissionPlayers.name,
+                    count
+                )
+                .groupBy(Kicks.steamID, MissionPlayers.name)
+                .orderBy(count, SortOrder.DESC)
+                .toList()
+                .map { UserCount(it[Kicks.steamID], it[MissionPlayers.name], it[count].toUInt()) }
+        }
+    }
+
+    fun getWarnsLeaderboard(): List<UserCount> {
+        return transaction {
+            val count = Warns.id.countDistinct()
+            Warns
+                .join(
+                    MissionPlayers,
+                    JoinType.LEFT,
+                    additionalConstraint = {
+                        Warns.steamID eq MissionPlayers.steamID
+                    }
+                )
+                .select(
+                    Warns.steamID,
+                    MissionPlayers.name,
+                    count
+                )
+                .groupBy(Warns.steamID, MissionPlayers.name)
+                .orderBy(count, SortOrder.DESC)
+                .toList()
+                .map { UserCount(it[Warns.steamID], it[MissionPlayers.name], it[count].toUInt()) }
+        }
+    }
+
+    fun getTeamkillsLeaderboard(): List<UserCount> {
+        return transaction {
+            val count = TeamKills.id.countDistinct()
+            TeamKills
+                .join(
+                    MissionPlayers,
+                    JoinType.LEFT,
+                    additionalConstraint = {
+                        TeamKills.killerID eq MissionPlayers.steamID
+                    }
+                )
+                .select(
+                    TeamKills.killerID,
+                    MissionPlayers.name,
+                    count
+                )
+                .groupBy(TeamKills.killerID, MissionPlayers.name)
+                .orderBy(count, SortOrder.DESC)
+                .toList()
+                .map { UserCount(it[TeamKills.killerID], it[MissionPlayers.name], it[count].toUInt()) }
+        }
+    }
 }
