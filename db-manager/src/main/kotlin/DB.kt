@@ -68,7 +68,7 @@ class DB() {
     }
 
 
-    fun getServerIdFromName(name: String): Int? {
+    fun getOrCreateServerIdFromName(name: String): Int {
         val result = transaction {
             Servers
                 .selectAll()
@@ -76,7 +76,11 @@ class DB() {
                 .firstOrNull()
         }
         if (result == null) {
-            return null
+            return Servers
+                .insert {
+                    it[Servers.name] = name
+                    it[Servers.maxPlayers] = 16
+                }[Servers.id]
         }
         return result[Servers.id]
     }
@@ -94,7 +98,7 @@ class DB() {
         return result[Servers.name]
     }
 
-    fun getMissionIdFromName(name: String): Int? {
+    fun getOrCreateMissionIdFromName(name: String): Int {
         val result = transaction {
             Missions
                 .selectAll()
@@ -102,7 +106,11 @@ class DB() {
                 .firstOrNull()
         }
         if (result == null) {
-            return null
+            return Missions
+                .insert {
+                    it[Missions.name] = name
+                    it[pvp] = false
+                }[Missions.id]
         }
         return result[Missions.id]
     }
@@ -184,11 +192,8 @@ class DB() {
     }
 
     fun startMission(name: String, time: Timestamp, serverName: String): Long {
-        val serverID = getServerIdFromName(serverName)
-        val missionID = getMissionIdFromName(name)
-        if (serverID == null || missionID == null) {
-            throw NullPointerException("Server $serverName or mission $name not found.")
-        }
+        val serverID = getOrCreateServerIdFromName(serverName)
+        val missionID = getOrCreateMissionIdFromName(name)
         val result = transaction {
             ServerMissions.insert {
                 it[server] = serverID

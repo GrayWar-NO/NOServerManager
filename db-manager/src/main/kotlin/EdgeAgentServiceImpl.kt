@@ -51,7 +51,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     serversToMissionIDs[source] ?: 1,
                     request.message
                 )
-                val sID = db.getServerIdFromName(source) ?: 1
+                val sID = db.getOrCreateServerIdFromName(source)
 
                 discordMessageCallback?.invoke(request, sID)
             }
