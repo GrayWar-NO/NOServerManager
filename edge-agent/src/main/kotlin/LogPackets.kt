@@ -127,9 +127,11 @@ suspend fun sendBan(packet: LogEntryPacket,
     val rb = BanRequest.newBuilder()
         .setShouldBeBanned(shouldBeBanned)
         .setSteamID(values[1].toULong().toLong())
-        .setBanStart(timestampNow)
-    if (shouldBeBanned) rb.setReason(values.drop(3).joinToString(":"))
-    if (timestampEnd != null) rb.setBanEnd(timestampEnd)
+    if (shouldBeBanned) {
+        rb.setBanStart(timestampNow)
+        rb.setReason(values.drop(3).joinToString(":"))
+        if (timestampEnd != null) rb.setBanEnd(timestampEnd)
+    } else rb.setBanEnd(timestampNow)
     val request = rb.build()
 
     return grpcStub.sendBan(request)

@@ -51,7 +51,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     serversToMissionIDs[source] ?: 1,
                     request.message
                 )
-                val sID = db.getServerIdFromName(source) ?: 1
+                val sID = db.getOrCreateServerIdFromName(source)
 
                 discordMessageCallback?.invoke(request, sID)
             }
@@ -142,7 +142,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             if (request.shouldBeBanned) {
                 db.addBan(request.steamID.toULong(), request.reason, request.banStart, request.banEnd)
             } else {
-                db.endBan(request.steamID.toULong(), request.banStart)
+                db.endBan(request.steamID.toULong(), request.banEnd)
             }
             banSubscribers
                 .filterKeys { key -> key != source }

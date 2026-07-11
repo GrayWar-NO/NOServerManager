@@ -40,6 +40,8 @@ class Discord(
     lateinit var teamKillExt: TeamKillExtension
     lateinit var linkExt: LinkMeExtension
     private val db = DB(databaseConfig)
+    private val adminRoles = config.adminRoles.map { id -> Snowflake(id) }
+
 
     suspend fun start() {
         serverMessageExtensions = config.serverWebhooks.map { config ->
@@ -68,7 +70,8 @@ class Discord(
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
                 add { teamKillExt }
-                add { CentralServerExtension(db, cbEdgeAgent, config.adminRoles) }
+                add { CentralServerExtension(db, cbEdgeAgent, adminRoles) }
+                add { ModQueriesExtension(db, adminRoles)}
                 add { linkExt }
                 add { StatsExtension(db) }
             }
