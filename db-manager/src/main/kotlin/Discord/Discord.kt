@@ -38,6 +38,8 @@ class Discord(
 ) {
     private var botJob: Job? = null
     private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
+    internal lateinit var teamKillExt: TeamKillExtension
+    internal lateinit var linkExt: LinkMeExtension
     private val db = DB(databaseConfig)
     private val adminRoles = config.adminRoles.map { id -> Snowflake(id) }
 
@@ -50,8 +52,8 @@ class Discord(
         val guildID = Snowflake(config.guildID)
 
         val statusExt = Status(db, Snowflake(config.statusChannel), guildID, cbEdgeAgent)
-        val teamKillExt = TeamKillExtension(config.teamKillWebhook)
-        val linkExt = LinkMeExtension(
+        teamKillExt = TeamKillExtension(config.teamKillWebhook)
+        linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
             linkedGuild =  guildID
