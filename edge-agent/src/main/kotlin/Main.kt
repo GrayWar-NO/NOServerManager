@@ -1,12 +1,10 @@
 package com.graywar.noServerManager.edge
 
 import com.google.protobuf.Empty
-import com.google.protobuf.Timestamp
 import com.graywar.noServerManager.proto.ChatLog
 import com.graywar.noServerManager.proto.Command
 import com.graywar.noServerManager.proto.CommandResult
 import com.graywar.noServerManager.proto.EdgeAgentServiceGrpcKt
-import com.graywar.noServerManager.proto.StatusRequest
 import com.sksamuel.hoplite.ConfigLoaderBuilder
 import com.sksamuel.hoplite.addFileSource
 import io.grpc.ManagedChannel
@@ -20,7 +18,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.net.ConnectException
-import java.time.Instant
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Duration.Companion.seconds
@@ -159,26 +156,6 @@ fun main() = runBlocking {
             }
         }
     })
-
-    jobs.add(
-        launch {
-            while (isActive) {
-
-                val request = StatusRequest.newBuilder()
-                    .setLastHeartbeat(Timestamp.newBuilder().setSeconds(Instant.now().epochSecond).setNanos(Instant.now().nano).build())
-                    .build()
-
-                try {
-                    val response = grpcStub.reportStatus(request)
-                    if (!response.ok) println("[Edge] Central is not ok")
-//                    println("[Edge] Central replied: ${response.ok}")
-                } catch (e: Exception) {
-                    println("[Edge] Failed to report status: ${e.message}")
-                }
-                delay(config.nuclearOption.pingDelay.toLong().seconds)
-            }
-        }
-    )
 
     Runtime.getRuntime().addShutdownHook(Thread {
         runBlocking { cleanup(jobs, client, channel, cmdMgr) }
