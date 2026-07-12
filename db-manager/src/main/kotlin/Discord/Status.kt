@@ -57,7 +57,7 @@ class Status(val db: DB, val channelID: Snowflake, val guildID: Snowflake, val g
                     this.value = "✅ ${status.playerNumber}/${status.maxPlayers}"
                 else
                     this.value = "❌ 0/0"
-                inline = false
+                inline = true
             }
             field {
                 this.name = "Current mission - started"
@@ -71,6 +71,7 @@ class Status(val db: DB, val channelID: Snowflake, val guildID: Snowflake, val g
             field {
                 this.name = "last restarted"
                 this.value = "<t:${status.lastRestart.seconds}:R>"
+                this.inline = true
             }
         }
     }
