@@ -48,7 +48,7 @@ class Status(val db: DB, val channelID: Snowflake, val guildID: Snowflake, val g
     }
 
     fun EmbedBuilder.serverStatus(data: Map<String, StatusResponse>) {
-        title = "GrayWar servers status"
+        title = "Servers status"
 
         for ((name, status) in data) {
             field {
