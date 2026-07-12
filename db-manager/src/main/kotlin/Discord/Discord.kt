@@ -22,6 +22,7 @@ data class DiscordConfig(
     val enable: Boolean,
     val token: String,
     val guildID: ULong,
+    val statusChannel: ULong,
     val serverWebhooks: List<ServerConfig>,
     val teamKillWebhook: String,
     val adminRoles: List<ULong>,
@@ -37,8 +38,6 @@ class Discord(
 ) {
     private var botJob: Job? = null
     private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
-    lateinit var teamKillExt: TeamKillExtension
-    lateinit var linkExt: LinkMeExtension
     private val db = DB(databaseConfig)
     private val adminRoles = config.adminRoles.map { id -> Snowflake(id) }
 
@@ -47,11 +46,15 @@ class Discord(
         serverMessageExtensions = config.serverWebhooks.map { config ->
             ChatMessagesExtension(config, db)
         }
-        teamKillExt = TeamKillExtension(config.teamKillWebhook)
-        linkExt = LinkMeExtension(
+
+        val guildID = Snowflake(config.guildID)
+
+        val statusExt = Status(db, Snowflake(config.statusChannel), guildID, cbEdgeAgent)
+        val teamKillExt = TeamKillExtension(config.teamKillWebhook)
+        val linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
-            linkedGuild =  Snowflake(config.guildID)
+            linkedGuild =  guildID
         )
 
         val bot = ExtensibleBotBuilder().apply {
@@ -74,6 +77,7 @@ class Discord(
                 add { ModQueriesExtension(db, adminRoles)}
                 add { linkExt }
                 add { StatsExtension(db) }
+                add { statusExt }
             }
         }.build(config.token)
 
