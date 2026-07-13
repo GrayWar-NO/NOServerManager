@@ -76,4 +76,9 @@ class Status(val db: DB, val channelID: Snowflake, val guildID: Snowflake, val g
         }
     }
 
+    override suspend fun unload() {
+        message?.delete()
+        super.unload()
+    }
+
 }
