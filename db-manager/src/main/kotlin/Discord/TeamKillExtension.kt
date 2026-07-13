@@ -9,7 +9,7 @@ class TeamKillExtension(val url: String): Extension(){
     private lateinit var sender: WebhookSender
 
     override suspend fun setup(){
-        sender = WebhookSender(url, "Teamkills Reporter")
+        sender = WebhookSender(kord, url, "Teamkills Reporter")
     }
 
     suspend fun sendTeamKill(log: KillLog, killerName: String, killedName: String, server: String) {

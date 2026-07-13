@@ -3,8 +3,11 @@ package com.graywar.noServerManager.dbManager.Discord
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.DataBaseConfig
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
+import com.graywar.noServerManager.proto.ChatBack
 import com.graywar.noServerManager.proto.ChatLog
 import dev.kord.common.entity.Snowflake
+import dev.kord.gateway.Intent
+import dev.kord.gateway.PrivilegedIntent
 import dev.kordex.core.builders.ExtensibleBotBuilder
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
@@ -29,7 +32,7 @@ data class DiscordConfig(
     val linkedRole: ULong
 )
 
-@OptIn(DelicateCoroutinesApi::class)
+@OptIn(DelicateCoroutinesApi::class, PrivilegedIntent::class)
 class Discord(
     val config: DiscordConfig,
     databaseConfig: DataBaseConfig,
@@ -45,8 +48,13 @@ class Discord(
 
 
     suspend fun start() {
-        serverMessageExtensions = config.serverWebhooks.map { config ->
-            ChatMessagesExtension(config, db)
+        serverMessageExtensions = config.serverWebhooks.mapIndexed { index, config ->
+            val ext = ChatMessagesExtension(config, db) { username, content ->
+                cbEdgeAgent.discordMessageFlows[index]?.trySend(
+                    ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
+                )
+            }
+            ext
         }
 
         val guildID = Snowflake(config.guildID)
@@ -61,6 +69,10 @@ class Discord(
 
         val bot = ExtensibleBotBuilder().apply {
             kord {
+                intents {
+                    +Intent.GuildMessages
+                    +Intent.MessageContent
+                }
                 httpClient = HttpClient {
                     install(HttpRequestRetry) {
                         maxRetries = 5

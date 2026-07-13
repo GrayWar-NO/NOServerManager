@@ -15,6 +15,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -28,6 +29,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private val commandSubscribers = mutableMapOf<String, SendChannel<Command>>()
     private val statusProviders = mutableMapOf<String, SendChannel<StatusRequest>>()
     private val serversToMissionIDs = mutableMapOf<String, Long>()
+    internal var discordMessageFlows = mutableMapOf<Int, SendChannel<ChatBack>>()
 
     private var discordMessageCallback: (suspend (ChatLog, Int) -> Unit)? = null
     private var discordTKCallback: (suspend (KillLog, String, String, String) -> Unit)? = null
@@ -36,13 +38,13 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private val pendingCommands = mutableMapOf<String, CompletableDeferred<String>>()
     private val pendingStatusRequests = mutableMapOf<String, CompletableDeferred<StatusResponse>>()
 
-    override suspend fun sendChatLogsStream(requests: Flow<ChatLog>): Ack {
+    override fun sendChatLogsStream(requests: Flow<ChatLog>): Flow<ChatBack> = channelFlow {
+        val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        println("[Central] $source connected to chat logs streaming.")
+        val sID = db.getOrCreateServerIdFromName(source)
+        discordMessageFlows[sID] = channel
         requests
-            .onCompletion {
-                println("[Central] Agent disconnected from chat logs streaming.")
-            }
             .collect { request ->
-                val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
                 db.storeMessage(
                     request.senderSteamID.toULong(),
                     request.messageSendTime,
@@ -50,11 +52,13 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     serversToMissionIDs[source] ?: 1,
                     request.message
                 )
-                val sID = db.getOrCreateServerIdFromName(source)
-
                 discordMessageCallback?.invoke(request, sID)
             }
-        return Ack.newBuilder().setOk(true).build()
+
+        awaitClose {
+            discordMessageFlows.remove(sID)
+            println("[Central] $source disconnected from chat logs streaming.")
+        }
     }
 
     override fun subscribeToBans(request: Empty): Flow<BanRequest> = channelFlow {
