@@ -44,6 +44,7 @@ class Discord(
     private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
     internal lateinit var teamKillExt: TeamKillExtension
     internal lateinit var linkExt: LinkMeExtension
+    internal lateinit var modListExt: ModListExtension
     private val db = DB(databaseConfig)
     private val adminRole = Snowflake(config.adminRole)
     private val moderatorRole = Snowflake(config.moderatorRole)
@@ -68,6 +69,7 @@ class Discord(
             linkedRole = Snowflake(config.linkedRole),
             linkedGuild =  guildID
         )
+        modListExt = ModListExtension(guildID, moderatorRole, adminRole, db)
 
         val bot = ExtensibleBotBuilder().apply {
             kord {
@@ -94,6 +96,7 @@ class Discord(
                 add { linkExt }
                 add { StatsExtension(db) }
                 add { statusExt }
+                add { modListExt }
             }
         }.build(config.token)
 

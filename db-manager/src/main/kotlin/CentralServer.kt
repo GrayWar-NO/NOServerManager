@@ -62,6 +62,7 @@ class CentralServer {
             edgeAgent.setTKCallback(discord.teamKillExt::sendTeamKill)
             edgeAgent.setLinkCallback(discord.linkExt::newLink)
             edgeAgent.setReportCallback(discord.teamKillExt::sendReport)
+            edgeAgent.setPermissionBreakdownGetter(discord.modListExt::get)
         }
         embeddedServer(Netty, config.api.port, module = createModule(api)).start()
         println("[Central] gRPC server started on ${config.port}")

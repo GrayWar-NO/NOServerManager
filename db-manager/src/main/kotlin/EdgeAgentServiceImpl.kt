@@ -36,6 +36,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private var discordLinkCallback: (suspend (LinkUser) -> Unit)? = null
     private var discordReportCallback: (suspend (serverReport, String) -> Unit)? = null
 
+    private var permissionBreakdownCallback: (suspend () -> permissionBreakdown)? = null
+
     private val pendingCommands = mutableMapOf<String, CompletableDeferred<String>>()
     private val pendingStatusRequests = mutableMapOf<String, CompletableDeferred<StatusResponse>>()
 
@@ -323,6 +325,10 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
+    override suspend fun getStaffList(request: Empty): permissionBreakdown {
+        return permissionBreakdownCallback!!.invoke()
+    }
+
     fun setMsgCallback(cb: (suspend (ChatLog, Int) -> Unit)){
         if (discordMessageCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordMessageCallback = cb
@@ -341,6 +347,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     fun setReportCallback(cb: (suspend (serverReport, String) -> Unit)){
         if (discordReportCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordReportCallback = cb
+    }
+
+    fun setPermissionBreakdownGetter(cb: (suspend () -> permissionBreakdown)){
+        if (permissionBreakdownCallback != null)  throw IllegalStateException("Tried to set a permission breakdown but it was already set.")
+        permissionBreakdownCallback = cb
     }
 
 }
