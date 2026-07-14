@@ -13,6 +13,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -103,7 +104,7 @@ fun main() = runBlocking {
     jobs.add (launch (Dispatchers.IO){
         retryWithBackoff {
             val ack = grpcStub.sendChatLogsStream(chatLogsFlow)
-            println("Server flow ok: ${ack.ok}")
+            println("Server flow ok: ${ack.first()}")
         }
     })
 
