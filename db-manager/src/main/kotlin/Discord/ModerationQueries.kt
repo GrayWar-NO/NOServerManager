@@ -28,7 +28,7 @@ class UserForModCommandArg : Arguments() {
     }
 }
 
-class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extension() {
+class ModQueriesExtension(val db: DB, val adminRole: Snowflake, val moderatorRole: Snowflake) : Extension() {
     override val name: String = "Mod queries"
     override suspend fun setup() {
         ephemeralSlashCommand {
@@ -36,7 +36,8 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
             description = Key("Get ban history")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
+                requireAnyRoleOrOwner(moderatorRole, adminRole)
+                pass()
             }
 
             action {
@@ -49,8 +50,9 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
             description = Key("Get history of missions")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
-            }
+                requireAnyRoleOrOwner(moderatorRole, adminRole)
+                pass()
+           }
 
             action {
                 val steamID = arguments.user?.toULongOrNull()
@@ -64,8 +66,9 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
             description = Key("Get kick history")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
-            }
+                requireAnyRoleOrOwner(moderatorRole, adminRole)
+                pass()
+           }
 
             action {
                 val steamID = arguments.user?.toULongOrNull()
@@ -79,8 +82,9 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
             description = Key("Get warn history")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
-            }
+                requireAnyRoleOrOwner(moderatorRole, adminRole)
+                pass()
+           }
 
             action {
                 val steamID = arguments.user?.toULongOrNull()
@@ -94,8 +98,9 @@ class ModQueriesExtension(val db: DB, val adminRoles: List<Snowflake>) : Extensi
             description = Key("Get leaderboards for stuff")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
-            }
+                requireAnyRoleOrOwner(moderatorRole, adminRole)
+                pass()
+           }
 
             ephemeralSubCommand {
                 name = Key("kicks")

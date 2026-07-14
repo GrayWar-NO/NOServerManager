@@ -28,7 +28,8 @@ data class DiscordConfig(
     val statusChannel: ULong,
     val serverWebhooks: List<ServerConfig>,
     val teamKillWebhook: String,
-    val adminRoles: List<ULong>,
+    val moderatorRole: ULong,
+    val adminRole: ULong,
     val linkedRole: ULong
 )
 
@@ -44,7 +45,8 @@ class Discord(
     internal lateinit var teamKillExt: TeamKillExtension
     internal lateinit var linkExt: LinkMeExtension
     private val db = DB(databaseConfig)
-    private val adminRoles = config.adminRoles.map { id -> Snowflake(id) }
+    private val adminRole = Snowflake(config.adminRole)
+    private val moderatorRole = Snowflake(config.moderatorRole)
 
 
     suspend fun start() {
@@ -60,7 +62,7 @@ class Discord(
         val guildID = Snowflake(config.guildID)
 
         val statusExt = Status(db, Snowflake(config.statusChannel), guildID, cbEdgeAgent)
-        teamKillExt = TeamKillExtension(config.teamKillWebhook, adminRoles[0])
+        teamKillExt = TeamKillExtension(config.teamKillWebhook, moderatorRole)
         linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
@@ -87,8 +89,8 @@ class Discord(
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
                 add { teamKillExt }
-                add { CentralServerExtension(db, cbEdgeAgent, adminRoles) }
-                add { ModQueriesExtension(db, adminRoles)}
+                add { CentralServerExtension(db, cbEdgeAgent, adminRole, moderatorRole) }
+                add { ModQueriesExtension(db, adminRole, moderatorRole)}
                 add { linkExt }
                 add { StatsExtension(db) }
                 add { statusExt }

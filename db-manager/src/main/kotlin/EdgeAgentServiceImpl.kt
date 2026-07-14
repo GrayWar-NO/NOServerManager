@@ -148,13 +148,20 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     }
 
 
-    suspend fun sendCommand(clientId: String, command: String, args: List<String>, result: Boolean): Deferred<String> {
+    suspend fun sendCommand(
+        clientId: String,
+        command: String,
+        args: List<String>,
+        result: Boolean,
+        permLevel: PermissionLevel
+    ): Deferred<String> {
         val requestId = UUID.randomUUID().toString()
         val deferred = CompletableDeferred<String>()
 
         var requestBuilder = Command.newBuilder()
             .setRequestID(requestId)
             .setName(command)
+            .setPermLevel(permLevel)
 
         for (arg in args) {
             requestBuilder = requestBuilder.addArguments(arg)
