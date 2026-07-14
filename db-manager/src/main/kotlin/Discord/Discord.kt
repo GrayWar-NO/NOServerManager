@@ -60,7 +60,7 @@ class Discord(
         val guildID = Snowflake(config.guildID)
 
         val statusExt = Status(db, Snowflake(config.statusChannel), guildID, cbEdgeAgent)
-        teamKillExt = TeamKillExtension(config.teamKillWebhook)
+        teamKillExt = TeamKillExtension(config.teamKillWebhook, adminRoles[0])
         linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
