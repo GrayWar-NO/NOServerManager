@@ -33,16 +33,6 @@ jobs:
             echo "channel=latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build and push edge image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: edge.Dockerfile
-          push: true
-          tags: |
-            ${{ env.OWNER }}/manager-edge:${{ steps.tags.outputs.version }}
-            ${{ env.OWNER }}/manager-edge:${{ steps.tags.outputs.channel }}
-
       - name: Build and push central image
         uses: docker/build-push-action@v6
         with:

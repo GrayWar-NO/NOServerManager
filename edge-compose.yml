@@ -1,11 +1,4 @@
 services:
-  edge-agent:
-    image: graywarno/manager-edge:latest
-    container_name: edge-agent
-    restart: unless-stopped
-    volumes:
-      - ./CA:/app/CA
-      - ./edge-agent/edge-agent.conf:/app/edge-agent.conf
   nuclear-option-server-compose:
     image: graywarno/no-server:latest
     container_name: no-server
@@ -36,7 +29,7 @@ services:
       - ./config/missions:/home/steam/NuclearOption-Missions
 
       # BepInEx plugins
-      - ./config/BepInEx/plugins:/home/steam/Steam/steamapps/common/NuclearOptionServer/BepInEx/plugins
+      - ./config/BepInEx/plugins:/home/steam/plugins
 
       # BepInEx log output
       - ./config/BepInEx/LogOutput.log:/home/steam/Steam/steamapps/common/NuclearOptionServer/BepInEx/LogOutput.log
