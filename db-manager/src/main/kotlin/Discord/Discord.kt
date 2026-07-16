@@ -28,6 +28,7 @@ data class DiscordConfig(
     val statusChannel: ULong,
     val serverWebhooks: List<ServerConfig>,
     val teamKillWebhook: String,
+    val banWebhook: String,
     val moderatorRole: ULong,
     val adminRole: ULong,
     val linkedRole: ULong
@@ -45,9 +46,12 @@ class Discord(
     internal lateinit var teamKillExt: TeamKillExtension
     internal lateinit var linkExt: LinkMeExtension
     internal lateinit var modListExt: ModListExtension
+    internal lateinit var banWebhookExt: BanLogExt
+
     private val db = DB(databaseConfig)
     private val adminRole = Snowflake(config.adminRole)
     private val moderatorRole = Snowflake(config.moderatorRole)
+
 
 
     suspend fun start() {
@@ -70,6 +74,7 @@ class Discord(
             linkedGuild =  guildID
         )
         modListExt = ModListExtension(guildID, moderatorRole, adminRole, db)
+        banWebhookExt = BanLogExt(config.banWebhook, db)
 
         val bot = ExtensibleBotBuilder().apply {
             kord {

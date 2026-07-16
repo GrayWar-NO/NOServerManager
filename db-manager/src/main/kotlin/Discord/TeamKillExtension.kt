@@ -21,7 +21,6 @@ class TeamKillExtension(val url: String, val pingRole: Snowflake): Extension(){
     suspend fun sendReport(log: serverReport, server: String) {
         sender.send{
             username = "${log.username} reported on $server"
-
             content = "<@${pingRole.value}> ${log.content}"
         }
     }
