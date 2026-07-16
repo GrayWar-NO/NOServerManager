@@ -4,11 +4,13 @@ import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.proto.BanRequest
 import dev.kordex.core.extensions.Extension
 
-class BanLogExt(url: String, private val db: DB): Extension() {
+class BanLogExt(val url: String, private val db: DB): Extension() {
     override val name: String = "BanLogger"
 
-    private val sender = WebhookSender(kord, url, "Bans logger")
-    override suspend fun setup() {}
+    private lateinit var sender: WebhookSender
+    override suspend fun setup() {
+        sender = WebhookSender(kord, url, "Bans logger")
+    }
 
     suspend fun log(data: BanRequest, server: String){
         val name = db.getLastPlayerName(data.steamID.toULong())
