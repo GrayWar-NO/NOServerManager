@@ -1,7 +1,6 @@
 package org.graywar.noServerManager.banListGenerator
 
 import com.google.protobuf.Empty
-import com.graywar.noServerManager.edge.EdgeConfig
 import com.graywar.noServerManager.proto.BanListGeneratorGrpcKt
 import com.sksamuel.hoplite.ConfigLoaderBuilder
 import com.sksamuel.hoplite.addFileSource
@@ -9,6 +8,9 @@ import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import kotlinx.coroutines.*
 import java.io.File
+
+data class EdgeConfig (val name: String, val central: Host)
+data class Host(val host: String, val port: Int)
 
 fun main() = runBlocking {
     val config = ConfigLoaderBuilder.default()

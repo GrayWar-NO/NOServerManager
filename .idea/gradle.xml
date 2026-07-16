@@ -11,7 +11,6 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/BanListGenerator" />
             <option value="$PROJECT_DIR$/db-manager" />
-            <option value="$PROJECT_DIR$/edge-agent" />
             <option value="$PROJECT_DIR$/proto" />
           </set>
         </option>
