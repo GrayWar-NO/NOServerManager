@@ -69,10 +69,9 @@ Once your central is configured and you only need to `docker compose up -d`!
    build it manually if I have not made any releases. Make sure to check for branches that would be more up-to-date than
    `main`.
 5. Run your server once to generate the config. It will be located in `$SERVER_DIR/config/BepInEx/config`.
-   see [how to configure the server](#configuring-a-server).
-6. In the `CA` folder of your central, generate a new set of keys with the name you gave your server at step 5.
-7. In the `CA` folder, you will need  to place a copy
-   of `ca.crt` as well as `servername.crt` and `servername.key`
+   You will then need to [configure the server](#configuring-a-server).
+6. On your central, in the `CA` folder, generate a new set of keys with the name you gave your server at step 5.
+7. Go back to your game server, and place a copy of `ca.crt`, `servername.crt` and `servername.key` in the `CA` folder.
 8. `docker compose up -d`
 9. enjoy!
 
