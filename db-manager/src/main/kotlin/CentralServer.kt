@@ -15,7 +15,6 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -35,7 +34,6 @@ class CentralServer {
     private val db = DB(config.db)
 
     private val edgeAgent = EdgeAgentServiceImpl(db)
-    private val banListGenerator = BanListGeneratorServiceImpl(db)
 
     private val discord = Discord(config.discord, config.db, edgeAgent)
 
@@ -56,7 +54,6 @@ class CentralServer {
                 AgentIdInterceptor()
             )
         )
-        .addService(banListGenerator)
         .build()
 
     private val api = GwApi(config.api)

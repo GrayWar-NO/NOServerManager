@@ -209,6 +209,14 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         discordBanCallback?.invoke(request, "all")
     }
 
+    override suspend fun getBanList(request: Empty): BanList {
+        val bans = db.getAllBans()
+        val requestBuilder = BanList.newBuilder()
+        for (ban in bans) {
+            requestBuilder.addBans(Ban.newBuilder().setSteamID(ban.steamID.toLong()).setReason(ban.reason))
+        }
+        return requestBuilder.build()
+    }
 
     override suspend fun sendKick(request: KickLog): Ack {
         try {

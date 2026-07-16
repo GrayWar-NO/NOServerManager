@@ -258,7 +258,11 @@ class DB() {
         return transaction {
             Bans
                 .selectAll()
-                .where { Bans.endTime.isNotNull() and (Bans.endTime greater Clock.System.now().minus(duration)) }
+                .where {
+                    Bans.endTime.isNotNull() and
+                            (Bans.endTime greater Clock.System.now().minus(duration)) and
+                            (Bans.endTime less Clock.System.now())
+                }
                 .map { r ->
                     val startTime = r[Bans.startTime]
                     val endTime = r[Bans.endTime]
