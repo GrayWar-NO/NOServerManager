@@ -35,6 +35,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private var discordTKCallback: (suspend (KillLog, String, String, String) -> Unit)? = null
     private var discordLinkCallback: (suspend (LinkUser) -> Unit)? = null
     private var discordReportCallback: (suspend (serverReport, String) -> Unit)? = null
+    private var discordBanCallback: (suspend (BanRequest, String) -> Unit)? = null
 
     private var permissionBreakdownCallback: (suspend () -> permissionBreakdown)? = null
 
@@ -196,6 +197,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     channel.trySend(request)
                     println("[Ban] Sending ban for ${request.steamID} to server $key")
                 }
+            discordBanCallback?.invoke(request, source)
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -352,6 +354,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     fun setPermissionBreakdownGetter(cb: (suspend () -> permissionBreakdown)){
         if (permissionBreakdownCallback != null)  throw IllegalStateException("Tried to set a permission breakdown but it was already set.")
         permissionBreakdownCallback = cb
+    }
+
+    fun setBanLoggerCallback(cb: (suspend (BanRequest, String) -> Unit)) {
+        if (discordBanCallback != null)  throw IllegalStateException("Tried to set the ban callback but it was already set.")
+        discordBanCallback = cb
     }
 
 }
