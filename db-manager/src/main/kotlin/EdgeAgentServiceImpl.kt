@@ -191,19 +191,24 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             } else {
                 db.endBan(request.steamID.toULong(), request.banEnd)
             }
-            banSubscribers
-                .filterKeys { key -> key != source }
-                .forEach { (key, channel) ->
-                    channel.trySend(request)
-                    println("[Ban] Sending ban for ${request.steamID} to server $key")
-                }
-            discordBanCallback?.invoke(request, source)
+            sendBanBack(request, listOf(source))
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
         }
         return Ack.newBuilder().setOk(true).build()
     }
+
+    suspend fun sendBanBack(request: BanRequest, excludedServers: List<String>){
+        banSubscribers
+            .filterKeys { key -> !excludedServers.contains(key) }
+            .forEach { (key, channel) ->
+                channel.trySend(request)
+                println("[Ban] Sending ban for ${request.steamID} to server $key")
+            }
+        discordBanCallback?.invoke(request, "all")
+    }
+
 
     override suspend fun sendKick(request: KickLog): Ack {
         try {

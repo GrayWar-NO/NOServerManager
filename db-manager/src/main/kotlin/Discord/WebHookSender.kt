@@ -22,7 +22,6 @@ class WebhookSender(
         val webhookId = parts[5].toLong()
         val token = parts[6]
         webhook = runBlocking { kord.rest.webhook.getWebhookWithToken(Snowflake(webhookId), token) }
-        println(webhook.channelId)
     }
 
     suspend fun send(content: String) {

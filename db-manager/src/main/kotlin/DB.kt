@@ -1,6 +1,7 @@
 package com.graywar.noServerManager.dbManager
 
 import com.google.protobuf.Timestamp
+import com.graywar.noServerManager.proto.BanRequest
 import com.graywar.noServerManager.proto.KillLog
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -250,6 +251,31 @@ class DB() {
             Bans.update({ Bans.steamID eq steamID and Bans.endTime.isNull() }) {
                 it[Bans.endTime] = transformTimestamp(endTime)
             }
+        }
+    }
+
+    fun getAllEndedBansInLast(duration: Duration): List<BanRequest> {
+        return transaction {
+            Bans
+                .selectAll()
+                .where { Bans.endTime.isNotNull() and (Bans.endTime greater Clock.System.now().minus(duration)) }
+                .map { r ->
+                    val startTime = r[Bans.startTime]
+                    val endTime = r[Bans.endTime]
+                    val banRq = BanRequest.newBuilder()
+                        .setShouldBeBanned(false)
+                        .setReason(r[Bans.reason])
+                        .setSteamID(r[Bans.steamID].toLong())
+                        .setBanStart(
+                            Timestamp.newBuilder().setSeconds(startTime.epochSeconds)
+                                .setNanos(startTime.nanosecondsOfSecond).build()
+                        )
+                    if (endTime == null) banRq.build()
+                    banRq.setBanEnd(
+                        Timestamp.newBuilder().setSeconds(endTime!!.epochSeconds)
+                            .setNanos(endTime.nanosecondsOfSecond).build()
+                    ).build()
+                }
         }
     }
 
