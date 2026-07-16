@@ -11,11 +11,11 @@ import dev.kord.gateway.PrivilegedIntent
 import dev.kordex.core.builders.ExtensibleBotBuilder
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import io.ktor.client.plugins.HttpRequestRetry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.seconds
@@ -34,12 +34,12 @@ data class DiscordConfig(
     val linkedRole: ULong
 )
 
-@OptIn(DelicateCoroutinesApi::class, PrivilegedIntent::class)
+@OptIn(PrivilegedIntent::class)
 class Discord(
     val config: DiscordConfig,
     databaseConfig: DataBaseConfig,
     val cbEdgeAgent: EdgeAgentServiceImpl,
-    private val scope: CoroutineScope = GlobalScope
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
     private var botJob: Job? = null
     private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
