@@ -11,6 +11,7 @@ import io.grpc.ServerCallHandler
 import io.grpc.ServerInterceptor
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
@@ -20,8 +21,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.util.UUID
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 
 class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImplBase() {
@@ -141,13 +145,22 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             .toMap()
     }
 
-    suspend fun requestStatus(source: String): StatusResponse {
+    suspend fun requestStatus(source: String, timeout: Duration = 30.seconds): StatusResponse {
         val outChannel = statusProviders[source] ?: return StatusResponse.newBuilder().setOk(false).build()
         val requestID = UUID.randomUUID().toString()
         val result = CompletableDeferred<StatusResponse>()
         pendingStatusRequests[requestID] = result
         outChannel.send(statusRequest { this.requestID = requestID })
-        return result.await()
+        return try {
+            withTimeout(timeout) {
+                result.await()
+            }
+        } catch (_: TimeoutCancellationException) {
+            StatusResponse.newBuilder().setOk(false).build()
+        }
+        finally {
+            pendingStatusRequests.remove(requestID)
+        }
     }
 
 
