@@ -1,11 +1,4 @@
 services:
-  edge-agent:
-    image: graywarno/manager-edge:latest
-    container_name: edge-agent
-    restart: unless-stopped
-    volumes:
-      - ./edge-agent/CA:/app/CA
-      - ./edge-agent/edge-agent.conf:/app/edge-agent.conf
   nuclear-option-server-compose:
     image: graywarno/no-server:latest
     container_name: no-server
@@ -13,13 +6,18 @@ services:
     tty: true
 
     ports:
-      - "27015:27015/udp"
       - "7777:7777/udp"
       - "7778:7778/udp"
+
+    environment:
+      DOCKER_HOST: http://socket-proxy:2375
 
     volumes:
       # BepInEx config files (settings.json, etc.)
       - ./config/BepInEx/config:/home/steam/Steam/steamapps/common/NuclearOptionServer/BepInEx/config
+
+      # CA certificates for the embedded gRPC implementation.
+      - ./CA:/home/steam/Steam/steamapps/common/NuclearOptionServer/CA
 
       # Dedicated server JSON config
       - ./config/DedicatedServerConfig.json:/home/steam/Steam/steamapps/common/NuclearOptionServer/DedicatedServerConfig.json
@@ -31,6 +29,36 @@ services:
       - ./config/missions:/home/steam/NuclearOption-Missions
 
       # BepInEx plugins
-      - ./config/BepInEx/plugins:/home/steam/Steam/steamapps/common/NuclearOptionServer/BepInEx/plugins
+      - ./config/BepInEx/plugins:/home/steam/plugins
 
+      # BepInEx log output
       - ./config/BepInEx/LogOutput.log:/home/steam/Steam/steamapps/common/NuclearOptionServer/BepInEx/LogOutput.log
+
+  socket-proxy:
+    restart: always
+    privileged: true
+    image: tecnativa/docker-socket-proxy
+    container_name: socket-proxy
+    environment:
+      INFO: 1
+      CONTAINERS: 1
+      BUILD: 0
+      COMMIT: 0
+      CONFIGS: 0
+      DISTRIBUTION: 0
+      EXEC: 0
+      GRPC: 0
+      IMAGES: 0
+      NETWORKS: 0
+      NODES: 0
+      PLUGINS: 0
+      SERVICES: 0
+      SESSION: 0
+      SWARM: 0
+      SYSTEM: 0
+      TASKS: 0
+      VOLUMES: 0
+      ALLOW_RESTARTS: 1
+      POST: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

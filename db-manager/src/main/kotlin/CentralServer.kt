@@ -13,8 +13,14 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.netty.shaded.io.netty.handler.ssl.ClientAuth
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
+import kotlin.time.Duration.Companion.hours
 
 data class HostConfig(val port: Int, val db: DataBaseConfig, val discord: DiscordConfig, val api: ApiConfig)
 
@@ -28,7 +34,6 @@ class CentralServer {
     private val db = DB(config.db)
 
     private val edgeAgent = EdgeAgentServiceImpl(db)
-    private val banListGenerator = BanListGeneratorServiceImpl(db)
 
     private val discord = Discord(config.discord, config.db, edgeAgent)
 
@@ -49,7 +54,6 @@ class CentralServer {
                 AgentIdInterceptor()
             )
         )
-        .addService(banListGenerator)
         .build()
 
     private val api = GwApi(config.api)
@@ -61,7 +65,11 @@ class CentralServer {
             edgeAgent.setMsgCallback(discord::queueMessage)
             edgeAgent.setTKCallback(discord.teamKillExt::sendTeamKill)
             edgeAgent.setLinkCallback(discord.linkExt::newLink)
+            edgeAgent.setReportCallback(discord.teamKillExt::sendReport)
+            edgeAgent.setPermissionBreakdownGetter(discord.modListExt::get)
+            edgeAgent.setBanLoggerCallback(discord.banWebhookExt::log)
         }
+        manageEndingBans()
         embeddedServer(Netty, config.api.port, module = createModule(api)).start()
         println("[Central] gRPC server started on ${config.port}")
         server.awaitTermination()
@@ -72,6 +80,18 @@ class CentralServer {
         server.shutdownNow()!!
         discord.stop()
     }
+
+    private fun manageEndingBans() = CoroutineScope(Dispatchers.Default).launch {
+        while (isActive) {
+            delay(12.hours)
+            for (ban in db.getAllEndedBansInLast(12.hours)) {
+                edgeAgent.sendBanBack(ban, emptyList())
+            }
+        }
+        println("cancelled")
+    }
+
+
 }
 
 fun main() = CentralServer().start()

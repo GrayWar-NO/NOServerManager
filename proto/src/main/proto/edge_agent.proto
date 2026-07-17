@@ -14,12 +14,25 @@ import "google/protobuf/timestamp.proto";
 // Messages
 // ---------------------------------------------------------------------
 
-message StatusRequest {
-  google.protobuf.Timestamp last_heartbeat = 3;
+enum PermissionLevel {
+  Everyone = 0;
+  Moderator = 1;
+  Admin = 2;
+  Owner = 3;
 }
 
 message StatusResponse {
   bool ok = 1;
+  uint32 playerNumber = 2;
+  uint32 maxPlayers = 3;
+  string missionName = 4;
+  google.protobuf.Timestamp missionStart = 5;
+  google.protobuf.Timestamp lastRestart = 6;
+  string requestID = 7;
+}
+
+message StatusRequest {
+  string requestID = 1;
 }
 
 
@@ -36,6 +49,11 @@ message ChatLog{
   uint64 senderSteamID = 2;
   string messageChannel = 3;
   string message = 4;
+}
+
+message ChatBack{
+  string senderName = 1;
+  string message = 2;
 }
 
 message LinkUser{
@@ -95,6 +113,7 @@ message Command{
   string name = 2;
   repeated string arguments = 3;
   bool result = 4;
+  PermissionLevel permLevel = 5;
 }
 
 message CommandResult{
@@ -124,13 +143,21 @@ message DonationLog{
   google.protobuf.Timestamp time = 4;
 }
 
+message serverReport{
+  string username = 1;
+  string content = 2;
+}
+
+message permissionBreakdown {
+  repeated uint64 admins = 2;
+  repeated uint64 mods = 3;
+}
 
 // ---------------------------------------------------------------------
 // Services
 // ---------------------------------------------------------------------
 
 service EdgeAgentService {
-  rpc ReportStatus(StatusRequest) returns (StatusResponse);
   rpc SendBan(BanRequest) returns (Ack);
   rpc SendKick(KickLog) returns (Ack);
   rpc SendWarn(WarnLog) returns (Ack);
@@ -142,12 +169,12 @@ service EdgeAgentService {
   rpc SendTeamKill(KillLog) returns (Ack);
   rpc sendLinkCode(LinkUser) returns (Ack);
   rpc sendDonation(DonationLog) returns (Ack);
+  rpc sendReport(serverReport) returns (Ack);
+  rpc getStaffList(google.protobuf.Empty) returns (permissionBreakdown);
+  rpc GetBanList(google.protobuf.Empty) returns (BanList);
 
-  rpc SendChatLogsStream(stream ChatLog) returns (Ack);
+  rpc StatusStream(stream StatusResponse) returns (stream StatusRequest);
+  rpc SendChatLogsStream(stream ChatLog) returns (stream ChatBack);
   rpc SubscribeToBans(google.protobuf.Empty) returns (stream BanRequest);
   rpc SubscribeToCommands(stream CommandResult) returns (stream Command);
-}
-
-service BanListGenerator {
-  rpc GetBanList(google.protobuf.Empty) returns (BanList);
 }

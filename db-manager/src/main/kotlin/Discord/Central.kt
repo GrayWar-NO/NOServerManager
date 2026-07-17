@@ -2,7 +2,9 @@ package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
+import com.graywar.noServerManager.proto.PermissionLevel
 import dev.kord.common.entity.Snowflake
+import dev.kord.core.entity.Member
 import dev.kordex.core.checks.guildFor
 import dev.kordex.core.checks.types.CheckContext
 import dev.kordex.core.checks.userFor
@@ -61,9 +63,17 @@ class CreateMissionCommandArgs : Arguments() {
 
 }
 
+suspend fun getPermissionLevel(user: Member, moderatorRole: Snowflake, adminRole: Snowflake): PermissionLevel {
+    if (user.isOwner()) return PermissionLevel.Owner
+    if (user.roleIds.contains(adminRole)) return PermissionLevel.Admin
+    if (user.roleIds.contains(moderatorRole)) return PermissionLevel.Moderator
+    return PermissionLevel.Everyone
+}
 
-internal suspend fun CheckContext<*>.requireAnyRole(vararg roles: Snowflake) {
+
+internal suspend fun CheckContext<*>.requireAnyRoleOrOwner(vararg roles: Snowflake) {
     val member = userFor(event)?.asMemberOrNull(guildFor(event)?.id ?: return fail(Key("Guild only command")))
+    if (member?.isOwner() ?: false) return
 
     val memberRoleIds = member?.roleIds ?: emptyList()
 
@@ -72,13 +82,13 @@ internal suspend fun CheckContext<*>.requireAnyRole(vararg roles: Snowflake) {
     if (!hasRole) {
         return fail(Key("You don't have permission to use this command."))
     }
-    return pass()
 }
 
 class CentralServerExtension(
     val db: DB,
     val cbEdgeAgent: EdgeAgentServiceImpl,
-    val adminRoles: List<Snowflake>) : Extension() {
+    val adminRole: Snowflake,
+    val moderatorRole: Snowflake) : Extension() {
     override val name = "ping"
 
     override suspend fun setup() {
@@ -87,7 +97,8 @@ class CentralServerExtension(
             description = Key("Gets all servers")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
+                requireAnyRoleOrOwner(adminRole, moderatorRole)
+                pass()
             }
 
             action {
@@ -113,7 +124,8 @@ class CentralServerExtension(
             description = Key("Send a command to a server")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
+                requireAnyRoleOrOwner(adminRole, moderatorRole)
+                pass()
             }
 
             action {
@@ -133,7 +145,8 @@ class CentralServerExtension(
                     serverName,
                     arguments.command,
                     arguments.arguments?.split(' ') ?: listOf(),
-                    arguments.result ?: true)
+                    arguments.result ?: true,
+                    getPermissionLevel(user.asMember(guildFor(event)!!.id), moderatorRole, adminRole),)
                 if (!result){
                     respond {
                         content = "Command ${arguments.command} executed on server (you asked for no result)"
@@ -152,7 +165,8 @@ class CentralServerExtension(
             description = Key("Creates a new server from name IN THE DATABASE (doesnt actually run any new server)")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
+                requireAnyRoleOrOwner(moderatorRole, adminRole)
+                pass()
             }
 
             action {
@@ -166,7 +180,8 @@ class CentralServerExtension(
             description = Key("Creates a new mission from name IN THE DATABASE (doesnt actually add the mission)")
 
             check {
-                requireAnyRole(*adminRoles.toTypedArray())
+                requireAnyRoleOrOwner(moderatorRole, adminRole)
+                pass()
             }
 
             action {

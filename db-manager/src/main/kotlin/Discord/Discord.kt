@@ -3,16 +3,19 @@ package com.graywar.noServerManager.dbManager.Discord
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.DataBaseConfig
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
+import com.graywar.noServerManager.proto.ChatBack
 import com.graywar.noServerManager.proto.ChatLog
 import dev.kord.common.entity.Snowflake
+import dev.kord.gateway.Intent
+import dev.kord.gateway.PrivilegedIntent
 import dev.kordex.core.builders.ExtensibleBotBuilder
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import io.ktor.client.plugins.HttpRequestRetry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.seconds
@@ -22,40 +25,63 @@ data class DiscordConfig(
     val enable: Boolean,
     val token: String,
     val guildID: ULong,
+    val statusChannel: ULong,
     val serverWebhooks: List<ServerConfig>,
     val teamKillWebhook: String,
-    val adminRoles: List<ULong>,
+    val banWebhook: String,
+    val moderatorRole: ULong,
+    val adminRole: ULong,
     val linkedRole: ULong
 )
 
-@OptIn(DelicateCoroutinesApi::class)
+@OptIn(PrivilegedIntent::class)
 class Discord(
     val config: DiscordConfig,
     databaseConfig: DataBaseConfig,
     val cbEdgeAgent: EdgeAgentServiceImpl,
-    private val scope: CoroutineScope = GlobalScope
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
     private var botJob: Job? = null
     private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
-    lateinit var teamKillExt: TeamKillExtension
-    lateinit var linkExt: LinkMeExtension
+    internal lateinit var teamKillExt: TeamKillExtension
+    internal lateinit var linkExt: LinkMeExtension
+    internal lateinit var modListExt: ModListExtension
+    internal lateinit var banWebhookExt: BanLogExt
+
     private val db = DB(databaseConfig)
-    private val adminRoles = config.adminRoles.map { id -> Snowflake(id) }
+    private val adminRole = Snowflake(config.adminRole)
+    private val moderatorRole = Snowflake(config.moderatorRole)
+
 
 
     suspend fun start() {
-        serverMessageExtensions = config.serverWebhooks.map { config ->
-            ChatMessagesExtension(config, db)
+        serverMessageExtensions = config.serverWebhooks.mapIndexed { index, config ->
+            val ext = ChatMessagesExtension(config, db) { username, content ->
+                cbEdgeAgent.discordMessageFlows[index]?.trySend(
+                    ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
+                )
+            }
+            ext
         }
-        teamKillExt = TeamKillExtension(config.teamKillWebhook)
+
+        val guildID = Snowflake(config.guildID)
+
+        val statusExt = Status(db, Snowflake(config.statusChannel), guildID, cbEdgeAgent)
+        teamKillExt = TeamKillExtension(config.teamKillWebhook, moderatorRole)
         linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
-            linkedGuild =  Snowflake(config.guildID)
+            linkedGuild =  guildID
         )
+        modListExt = ModListExtension(guildID, moderatorRole, adminRole, db)
+        banWebhookExt = BanLogExt(config.banWebhook, db)
 
         val bot = ExtensibleBotBuilder().apply {
             kord {
+                intents {
+                    +Intent.GuildMessages
+                    +Intent.MessageContent
+                }
                 httpClient = HttpClient {
                     install(HttpRequestRetry) {
                         maxRetries = 5
@@ -70,10 +96,12 @@ class Discord(
             extensions {
                 serverMessageExtensions.forEach { ext -> add {ext} }
                 add { teamKillExt }
-                add { CentralServerExtension(db, cbEdgeAgent, adminRoles) }
-                add { ModQueriesExtension(db, adminRoles)}
+                add { CentralServerExtension(db, cbEdgeAgent, adminRole, moderatorRole) }
+                add { ModQueriesExtension(db, adminRole, moderatorRole)}
                 add { linkExt }
                 add { StatsExtension(db) }
+                add { statusExt }
+                add { modListExt }
             }
         }.build(config.token)
 
