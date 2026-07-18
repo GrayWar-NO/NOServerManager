@@ -102,6 +102,7 @@ class Discord(
                 add { StatsExtension(db) }
                 add { statusExt }
                 add { modListExt }
+                add { banWebhookExt }
             }
         }.build(config.token)
 
