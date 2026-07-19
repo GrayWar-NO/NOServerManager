@@ -77,11 +77,13 @@ class DB() {
                 .firstOrNull()
         }
         if (result == null) {
-            return Servers
-                .insert {
-                    it[Servers.name] = name
-                    it[Servers.maxPlayers] = 16
-                }[Servers.id]
+            return transaction {
+                Servers
+                    .insert {
+                        it[Servers.name] = name
+                        it[Servers.maxPlayers] = 16
+                    }[Servers.id]
+            }
         }
         return result[Servers.id]
     }
@@ -107,11 +109,13 @@ class DB() {
                 .firstOrNull()
         }
         if (result == null) {
-            return Missions
-                .insert {
-                    it[Missions.name] = name
-                    it[pvp] = false
-                }[Missions.id]
+            return transaction {
+                Missions
+                    .insert {
+                        it[Missions.name] = name
+                        it[pvp] = false
+                    }[Missions.id]
+            }
         }
         return result[Missions.id]
     }
