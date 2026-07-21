@@ -56,7 +56,7 @@ class Discord(
 
     suspend fun start() {
         serverMessageExtensions = config.serverWebhooks.mapIndexed { index, config ->
-            val ext = ChatMessagesExtension(config, db) { username, content ->
+            val ext = ChatMessagesExtension(index, config, db) { username, content ->
                 cbEdgeAgent.discordMessageFlows[index+1]?.trySend(
                     ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
                 )
