@@ -117,7 +117,11 @@ class Discord(
                 delay(5.seconds)
             }
         }
-        linkExt.initLinkedRoles()
+
+        scope.launch {
+            linkExt.initLinkedRoles()
+            println("Finised initializing discord roles")
+        }
     }
 
     fun stop() {
