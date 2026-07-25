@@ -12,6 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -57,6 +58,7 @@ class DB() {
             SchemaUtils.create(DiscordPlayers)
             SchemaUtils.create(Donations)
         }
+        migrateAndCleanupBans()
     }
 
     fun getAllServers(): Map<Int, String> {
@@ -246,6 +248,7 @@ class DB() {
                 it[Bans.reason] = reason
                 it[Bans.startTime] = startInstant
                 it[Bans.endTime] = if (endInstant < startInstant) null else endInstant
+                it[Bans.effective] = true
             }
         }
     }
@@ -254,36 +257,81 @@ class DB() {
         transaction {
             Bans.update({ Bans.steamID eq steamID and Bans.endTime.isNull() }) {
                 it[Bans.endTime] = transformTimestamp(endTime)
+                it[Bans.effective] =
+                    transformTimestamp(endTime) > Clock.System.now() // if it ends after right now, it's considered effective.
             }
         }
     }
 
-    fun getAllEndedBansInLast(duration: Duration): List<BanRequest> {
+    fun getAllEndedBans(): List<BanRequest> {
         return transaction {
-            Bans
+            val matchingRows = Bans
                 .selectAll()
                 .where {
-                    Bans.endTime.isNotNull() and
-                            (Bans.endTime greater Clock.System.now().minus(duration)) and
-                            (Bans.endTime less Clock.System.now())
+                    Bans.effective and Bans.endTime.isNotNull() and (Bans.endTime less Clock.System.now())
                 }
-                .map { r ->
-                    val startTime = r[Bans.startTime]
-                    val endTime = r[Bans.endTime]
-                    val banRq = BanRequest.newBuilder()
-                        .setShouldBeBanned(false)
-                        .setReason(r[Bans.reason])
-                        .setSteamID(r[Bans.steamID].toLong())
-                        .setBanStart(
-                            Timestamp.newBuilder().setSeconds(startTime.epochSeconds)
-                                .setNanos(startTime.nanosecondsOfSecond).build()
-                        )
-                    if (endTime == null) banRq.build()
-                    banRq.setBanEnd(
-                        Timestamp.newBuilder().setSeconds(endTime!!.epochSeconds)
+                .toList()
+            if (matchingRows.isEmpty()) {
+                return@transaction emptyList()
+            }
+
+            val idsToUpdate = matchingRows.map { it[Bans.id] }
+
+            idsToUpdate.chunked(5000).forEach { chunk ->
+                Bans.update({ Bans.id inList chunk }) {
+                    it[Bans.effective] = false
+                }
+            }
+
+            matchingRows.map { r ->
+                val startTime = r[Bans.startTime]
+                val endTime = r[Bans.endTime]!!
+                BanRequest.newBuilder()
+                    .setShouldBeBanned(false)
+                    .setReason(r[Bans.reason])
+                    .setSteamID(r[Bans.steamID].toLong())
+                    .setBanStart(
+                        Timestamp.newBuilder().setSeconds(startTime.epochSeconds)
+                            .setNanos(startTime.nanosecondsOfSecond).build()
+                    )
+                    .setBanEnd(
+                        Timestamp.newBuilder().setSeconds(endTime.epochSeconds)
                             .setNanos(endTime.nanosecondsOfSecond).build()
                     ).build()
+            }
+        }
+    }
+
+    fun migrateAndCleanupBans() {
+        transaction {
+            MigrationUtils.statementsRequiredForDatabaseMigration(Bans, withLogs = true).forEach { stmt -> exec(stmt) }
+
+            val allBans = Bans
+                .select(Bans.id, Bans.steamID, Bans.endTime)
+                .orderBy(Bans.id to SortOrder.DESC)
+                .toList()
+
+            val idsToDisable = allBans
+                .groupBy { it[Bans.steamID] }
+                .flatMap { (_, bansForUser) ->
+                    if (bansForUser.size <= 1) return@flatMap emptyList()
+
+                    // Priority 1: Active ban. Priority 2: Newest ended ban (first in DESC list)
+                    val banToKeepId = bansForUser.firstOrNull { it[Bans.endTime] == null }?.get(Bans.id)
+                        ?: bansForUser.first()[Bans.id]
+
+                    bansForUser
+                        .filter { it[Bans.id] != banToKeepId }
+                        .map { it[Bans.id] }
                 }
+
+            if (idsToDisable.isNotEmpty()) {
+                idsToDisable.chunked(5000).forEach { chunk ->
+                    Bans.update({ Bans.id inList chunk }) {
+                        it[Bans.effective] = false
+                    }
+                }
+            }
         }
     }
 
@@ -581,9 +629,7 @@ class DB() {
             Bans
                 .leftJoin(MissionPlayers, { Bans.steamID }, { MissionPlayers.steamID })
                 .select(Bans.steamID, Bans.reason, Bans.startTime, MissionPlayers.name)
-                .where {
-                    (Bans.endTime.isNull() or Bans.endTime.greater(Clock.System.now()))
-                }
+                .where { Bans.effective eq true }
                 .withDistinct()
                 .orderBy(Bans.startTime to SortOrder.DESC)
                 .toList()

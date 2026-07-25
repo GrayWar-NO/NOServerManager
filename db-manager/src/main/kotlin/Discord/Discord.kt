@@ -1,7 +1,6 @@
 package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.dbManager.DB
-import com.graywar.noServerManager.dbManager.DataBaseConfig
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
 import com.graywar.noServerManager.proto.BanRequest
 import com.graywar.noServerManager.proto.ChatBack
@@ -43,7 +42,7 @@ data class DiscordConfig(
 @OptIn(PrivilegedIntent::class)
 class Discord(
     val config: DiscordConfig,
-    databaseConfig: DataBaseConfig,
+    val db: DB,
     val cbEdgeAgent: EdgeAgentServiceImpl,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
@@ -54,7 +53,6 @@ class Discord(
     internal lateinit var modListExt: ModListExtension
     internal lateinit var banWebhookExt: BanLogExt
 
-    private val db = DB(databaseConfig)
     private val adminRole = Snowflake(config.adminRole)
     private val moderatorRole = Snowflake(config.moderatorRole)
 

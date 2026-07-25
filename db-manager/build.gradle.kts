@@ -17,6 +17,7 @@ application{
 }
 
 val ktorVersion = "3.4.1"
+val exposedVersion = "1.1.1"
 
 dependencies {
     implementation(kotlin("stdlib"))
@@ -31,11 +32,14 @@ dependencies {
     implementation("com.sksamuel.hoplite:hoplite-core:2.9.0")
     implementation("com.sksamuel.hoplite:hoplite-hocon:2.9.0")
 
-    implementation("org.jetbrains.exposed:exposed-core:1.1.1")
-    implementation("org.jetbrains.exposed:exposed-dao:1.1.1")
-    implementation("org.jetbrains.exposed:exposed-jdbc:1.1.1")
-    implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.1.1")
-
+    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-kotlin-datetime:$exposedVersion")
+    
+    implementation("org.jetbrains.exposed:exposed-migration-core:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-migration-jdbc:$exposedVersion") // Use exposed-migration-r2dbc if using R2DBC
+    
     implementation("org.postgresql:postgresql:42.7.7")
 
     implementation("org.knowm.xchart:xchart:3.8.6")

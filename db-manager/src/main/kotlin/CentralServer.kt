@@ -20,7 +20,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
-import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 data class HostConfig(val port: Int, val db: DataBaseConfig, val discord: DiscordConfig, val api: ApiConfig)
 
@@ -35,7 +35,7 @@ class CentralServer {
 
     private val edgeAgent = EdgeAgentServiceImpl(db)
 
-    private val discord = Discord(config.discord, config.db, edgeAgent)
+    private val discord = Discord(config.discord, db, edgeAgent)
 
     private val server = NettyServerBuilder
         .forPort(config.port)
@@ -80,8 +80,8 @@ class CentralServer {
 
     private fun manageEndingBans() = CoroutineScope(Dispatchers.Default).launch {
         while (isActive) {
-            delay(12.hours)
-            for (ban in db.getAllEndedBansInLast(12.hours)) {
+            delay(30.minutes)
+            for (ban in db.getAllEndedBans()) {
                 edgeAgent.sendBanBack(ban, emptyList())
             }
         }

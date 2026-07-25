@@ -54,6 +54,7 @@ object Bans: Table() {
     val reason = varchar("reason", 500)
     val startTime = timestamp("startTime")
     val endTime = timestamp("endtime").nullable()
+    val effective = bool("effective").default(true)
     override val primaryKey = PrimaryKey(id)
 }
 
