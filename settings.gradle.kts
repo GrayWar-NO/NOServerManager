@@ -5,4 +5,3 @@ rootProject.name = "NOServerManager"
 
 include("proto")
 include("db-manager")
-include("BanListGenerator")
