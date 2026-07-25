@@ -6,21 +6,24 @@ import dev.kord.common.entity.Snowflake
 import dev.kord.rest.builder.message.allowedMentions
 import dev.kordex.core.extensions.Extension
 
-class TeamKillExtension(val url: String, val pingRole: Snowflake): Extension(){
+class TeamKillExtension(val url: String, val pingRole: Snowflake) : Extension() {
     override val name = "teamKills"
 
     private lateinit var sender: WebhookSender
 
-    override suspend fun setup(){
+    override suspend fun setup() {
         sender = WebhookSender(kord, url, "Teamkills Reporter")
     }
 
     suspend fun sendTeamKill(log: KillLog, killerName: String, killedName: String, server: String) {
-        sender.send("```$killerName[${log.killerUnit}]:${log.killer.toULong()} teamkilled $killedName[${log.killedUnit}]:${log.killed.toULong()} with ${log.weapon} on server $server```")
+        sender.send {
+            content =
+                "```$killerName[${log.killerUnit}]:${log.killer.toULong()} teamkilled $killedName[${log.killedUnit}]:${log.killed.toULong()} with ${log.weapon} on server $server```"
+        }
     }
 
     suspend fun sendReport(log: serverReport, server: String) {
-        sender.send{
+        sender.send {
             username = "${log.username} reported on $server"
             content = "<@&${pingRole.value}> ${log.content}"
             allowedMentions {

@@ -48,7 +48,7 @@ class ChatMessagesExtension(
             "${message.name} joined the server"
         else
             "${message.name} left the server, with a score of ${message.score}"
-        privateMessageWebhook.send(content)
+        privateMessageWebhook.send("(${message.steamID}) $content")
         publicMessageWebhook.send(content)
     }
 
