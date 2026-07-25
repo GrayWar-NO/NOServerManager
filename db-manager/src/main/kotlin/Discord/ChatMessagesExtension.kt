@@ -21,14 +21,14 @@ class ChatMessagesExtension(
     suspend fun enqueueMessage(message: ChatLog) {
         val steamID = message.senderSteamID.toULong()
         val userName = db.getLastPlayerName(steamID)
-        privateMessageWebhook.send {
-            username = "$userName in ${message.messageChannel} chat"
-            content = "$userName($steamID): ${message.message}"
-        }
+        privateMessageWebhook.send(
+            username = "$userName in ${message.messageChannel} chat",
+            content = "${userName}($steamID): ${message.message}"
+        )
         if (message.messageChannel == "all") {
             publicMessageWebhook.send {
                 username = userName
-                content = "```${message.message}```"
+                content = "```${escapeForCodeBlock(message.message)}```"
             }
         }
     }

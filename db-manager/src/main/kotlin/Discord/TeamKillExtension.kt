@@ -3,6 +3,7 @@ package com.graywar.noServerManager.dbManager.Discord
 import com.graywar.noServerManager.proto.KillLog
 import com.graywar.noServerManager.proto.serverReport
 import dev.kord.common.entity.Snowflake
+import dev.kord.rest.builder.message.allowedMentions
 import dev.kordex.core.extensions.Extension
 
 class TeamKillExtension(val url: String, val pingRole: Snowflake): Extension(){
@@ -22,6 +23,12 @@ class TeamKillExtension(val url: String, val pingRole: Snowflake): Extension(){
         sender.send{
             username = "${log.username} reported on $server"
             content = "<@&${pingRole.value}> ${log.content}"
+            allowedMentions {
+                users.clear()
+                roles.clear()
+                roles.add(Snowflake(pingRole.value))
+                repliedUser = false
+            }
         }
     }
 

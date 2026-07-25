@@ -53,11 +53,10 @@ class Discord(
     private val moderatorRole = Snowflake(config.moderatorRole)
 
 
-
     suspend fun start() {
         serverMessageExtensions = config.serverWebhooks.mapIndexed { index, config ->
             val ext = ChatMessagesExtension(index, config, db) { username, content ->
-                cbEdgeAgent.discordMessageFlows[index+1]?.trySend(
+                cbEdgeAgent.discordMessageFlows[index + 1]?.trySend(
                     ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
                 )
             }
@@ -71,7 +70,7 @@ class Discord(
         linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
-            linkedGuild =  guildID
+            linkedGuild = guildID
         )
         modListExt = ModListExtension(guildID, moderatorRole, adminRole, db)
         banWebhookExt = BanLogExt(config.banWebhook, db)
@@ -94,10 +93,10 @@ class Discord(
                 }
             }
             extensions {
-                serverMessageExtensions.forEach { ext -> add {ext} }
+                serverMessageExtensions.forEach { ext -> add { ext } }
                 add { teamKillExt }
                 add { CentralServerExtension(db, cbEdgeAgent, adminRole, moderatorRole) }
-                add { ModQueriesExtension(db, adminRole, moderatorRole)}
+                add { ModQueriesExtension(db, adminRole, moderatorRole) }
                 add { linkExt }
                 add { StatsExtension(db) }
                 add { statusExt }
@@ -128,8 +127,15 @@ class Discord(
         botJob?.cancel()
     }
 
-    suspend fun queueMessage(message: ChatLog, server: Int){
-        serverMessageExtensions[server-1].enqueueMessage(message)
+    suspend fun queueMessage(message: ChatLog, server: Int) {
+        serverMessageExtensions[server - 1].enqueueMessage(message)
     }
 
 }
+
+
+fun escapeDiscordMarkdown(text: String): String =
+    text.replace(Regex("""([\\*_~`|>])"""), """\\$1""")
+
+fun escapeForCodeBlock(text: String) =
+    text.replace("```", "``\u200B`")

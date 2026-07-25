@@ -3,6 +3,7 @@ package com.graywar.noServerManager.dbManager.Discord
 import dev.kord.common.entity.DiscordWebhook
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.Kord
+import dev.kord.rest.builder.message.allowedMentions
 import dev.kord.rest.builder.message.create.WebhookMessageCreateBuilder
 import kotlin.require
 import kotlinx.coroutines.runBlocking
@@ -28,7 +29,24 @@ class WebhookSender(
         val name = username
         send {
             this.username = name
-            this.content = content
+            this.content = escapeDiscordMarkdown(content)
+            allowedMentions {
+                users.clear()
+                roles.clear()
+                repliedUser = false
+            }
+        }
+    }
+
+    suspend fun send(username: String, content: String) {
+        send {
+            this.username = username
+            this.content = escapeDiscordMarkdown(content)
+            allowedMentions {
+                users.clear()
+                roles.clear()
+                repliedUser = false
+            }
         }
     }
 
