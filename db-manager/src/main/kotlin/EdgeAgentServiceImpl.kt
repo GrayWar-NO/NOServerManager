@@ -2,6 +2,7 @@ package com.graywar.noServerManager.dbManager
 
 import com.google.protobuf.Empty
 import com.google.protobuf.Timestamp
+import com.graywar.noServerManager.dbManager.Discord.LoggedServerEvent
 import com.graywar.noServerManager.proto.*
 import io.grpc.Context
 import io.grpc.Contexts
@@ -35,7 +36,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private val serversToMissionIDs = mutableMapOf<String, Long>()
     internal var discordMessageFlows = mutableMapOf<Int, SendChannel<ChatBack>>()
 
-    private var discordMessageCallback: (suspend (ChatLog, Int) -> Unit)? = null
+    private var discordLoggedEventCallback: (suspend (LoggedServerEvent, Int) -> Unit)? = null
     private var discordTKCallback: (suspend (KillLog, String, String, String) -> Unit)? = null
     private var discordLinkCallback: (suspend (LinkUser) -> Unit)? = null
     private var discordReportCallback: (suspend (serverReport, String) -> Unit)? = null
@@ -61,7 +62,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     serversToMissionIDs[source] ?: 1,
                     request.message
                 )
-                discordMessageCallback?.invoke(request, sID)
+                discordLoggedEventCallback?.invoke(LoggedServerEvent.ChatEvent(request), sID)
             }
 
         awaitClose {
@@ -164,8 +165,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             }
         } catch (_: TimeoutCancellationException) {
             StatusResponse.newBuilder().setOk(false).build()
-        }
-        finally {
+        } finally {
             pendingStatusRequests.remove(requestID)
         }
     }
@@ -219,7 +219,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
-    suspend fun sendBanBack(request: BanRequest, excludedServers: List<String>){
+    suspend fun sendBanBack(request: BanRequest, excludedServers: List<String>) {
         banSubscribers
             .filterKeys { key -> !excludedServers.contains(key) }
             .forEach { (key, channel) ->
@@ -261,10 +261,14 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendPlayerActivity(request: JoinLeaveLog): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            discordLoggedEventCallback?.invoke(
+                LoggedServerEvent.PlayerEvent(request), db.getOrCreateServerIdFromName(source)
+            )
+
             if (request.isOn) {
                 db.playerJoin(
                     request.steamID.toULong(),
-                    serversToMissionIDs[source]?: 1,
+                    serversToMissionIDs[source] ?: 1,
                     request.time,
                     request.name
                 )
@@ -290,6 +294,10 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendMissionChange(request: missionStatus): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+            discordLoggedEventCallback?.invoke(
+                LoggedServerEvent.MissionEvent(request),
+                db.getOrCreateServerIdFromName(source)
+            )
 
             if (source in serversToMissionIDs.keys)
                 db.endMission(serversToMissionIDs[source] ?: 1, request.time)
@@ -307,15 +315,13 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     }
 
     override suspend fun sendSortieChange(request: sortieStatus): Ack {
-        try{
-            if (request.start){
+        try {
+            if (request.start) {
                 db.startSortie(request.steamID.toULong(), request.planeName, request.time)
-            }
-            else
-            {
+            } else {
                 db.endSortie(request.steamID.toULong(), request.killed, request.time)
             }
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
         }
@@ -342,7 +348,12 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
             db.addTeamKill(serversToMissionIDs[source] ?: 1, request)
-            discordTKCallback?.invoke(request, db.getLastPlayerName(request.killer.toULong()), db.getLastPlayerName(request.killed.toULong()), source)
+            discordTKCallback?.invoke(
+                request,
+                db.getLastPlayerName(request.killer.toULong()),
+                db.getLastPlayerName(request.killed.toULong()),
+                source
+            )
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -356,7 +367,12 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     }
 
     override suspend fun sendDonation(request: DonationLog): Ack {
-        db.addDonation(request.donatorSteamID.toULong(), request.receiverSteamID.toULong(), request.amountMillions, request.time)
+        db.addDonation(
+            request.donatorSteamID.toULong(),
+            request.receiverSteamID.toULong(),
+            request.amountMillions,
+            request.time
+        )
         return Ack.newBuilder().setOk(true).build()
     }
 
@@ -364,33 +380,33 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return permissionBreakdownCallback!!.invoke()
     }
 
-    fun setMsgCallback(cb: (suspend (ChatLog, Int) -> Unit)){
-        if (discordMessageCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
-        discordMessageCallback = cb
+    fun setLoggedEventCallback(cb: (suspend (LoggedServerEvent, Int) -> Unit)) {
+        if (discordLoggedEventCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
+        discordLoggedEventCallback = cb
     }
 
-    fun setTKCallback(cb: (suspend (KillLog, String, String, String) -> Unit)){
-        if (discordTKCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
+    fun setTKCallback(cb: (suspend (KillLog, String, String, String) -> Unit)) {
+        if (discordTKCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordTKCallback = cb
     }
 
-    fun setLinkCallback(cb: (suspend (LinkUser) -> Unit)){
-        if (discordLinkCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
+    fun setLinkCallback(cb: (suspend (LinkUser) -> Unit)) {
+        if (discordLinkCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordLinkCallback = cb
     }
 
-    fun setReportCallback(cb: (suspend (serverReport, String) -> Unit)){
-        if (discordReportCallback != null)  throw IllegalStateException("Tried to set a discord callback but it was already set.")
+    fun setReportCallback(cb: (suspend (serverReport, String) -> Unit)) {
+        if (discordReportCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
         discordReportCallback = cb
     }
 
-    fun setPermissionBreakdownGetter(cb: (suspend () -> permissionBreakdown)){
-        if (permissionBreakdownCallback != null)  throw IllegalStateException("Tried to set a permission breakdown but it was already set.")
+    fun setPermissionBreakdownGetter(cb: (suspend () -> permissionBreakdown)) {
+        if (permissionBreakdownCallback != null) throw IllegalStateException("Tried to set a permission breakdown but it was already set.")
         permissionBreakdownCallback = cb
     }
 
     fun setBanLoggerCallback(cb: (suspend (BanRequest, String) -> Unit)) {
-        if (discordBanCallback != null)  throw IllegalStateException("Tried to set the ban callback but it was already set.")
+        if (discordBanCallback != null) throw IllegalStateException("Tried to set the ban callback but it was already set.")
         discordBanCallback = cb
     }
 

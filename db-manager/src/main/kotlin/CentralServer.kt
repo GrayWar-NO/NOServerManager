@@ -62,7 +62,7 @@ class CentralServer {
         server.start()
         if (config.discord.enable){
             discord.start()
-            edgeAgent.setMsgCallback(discord::queueMessage)
+            edgeAgent.setLoggedEventCallback(discord::sendLoggedEvent)
             edgeAgent.setTKCallback(discord.teamKillExt::sendTeamKill)
             edgeAgent.setLinkCallback(discord.linkExt::newLink)
             edgeAgent.setReportCallback(discord.teamKillExt::sendReport)

@@ -5,6 +5,8 @@ import com.graywar.noServerManager.dbManager.DataBaseConfig
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
 import com.graywar.noServerManager.proto.ChatBack
 import com.graywar.noServerManager.proto.ChatLog
+import com.graywar.noServerManager.proto.JoinLeaveLog
+import com.graywar.noServerManager.proto.missionStatus
 import dev.kord.common.entity.Snowflake
 import dev.kord.gateway.Intent
 import dev.kord.gateway.PrivilegedIntent
@@ -128,10 +130,16 @@ class Discord(
         botJob?.cancel()
     }
 
-    suspend fun queueMessage(message: ChatLog, server: Int) {
-        serverMessageExtensions[server - 1].enqueueMessage(message)
+    suspend fun sendLoggedEvent(message: LoggedServerEvent, server: Int) {
+        serverMessageExtensions[server - 1].sendEvent(message)
     }
 
+}
+
+sealed interface LoggedServerEvent {
+    data class ChatEvent(val event: ChatLog) : LoggedServerEvent
+    data class MissionEvent(val event: missionStatus) : LoggedServerEvent
+    data class PlayerEvent(val event: JoinLeaveLog) : LoggedServerEvent
 }
 
 
