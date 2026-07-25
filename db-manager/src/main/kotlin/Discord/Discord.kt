@@ -65,7 +65,7 @@ class Discord(
 
         val guildID = Snowflake(config.guildID)
 
-        val statusExt = Status(db, Snowflake(config.statusChannel), guildID, cbEdgeAgent)
+        val statusExt = Status( Snowflake(config.statusChannel), guildID, cbEdgeAgent)
         teamKillExt = TeamKillExtension(config.teamKillWebhook, moderatorRole)
         linkExt = LinkMeExtension(
             db,
@@ -112,6 +112,7 @@ class Discord(
                 } catch (e: Exception) {
                     println("[Discord] Bot crashed: ${e.message}")
                 }
+                @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
                 println("[Discord] Bot stopped. Restarting in 5s...")
                 delay(5.seconds)
             }

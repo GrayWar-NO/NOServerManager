@@ -48,6 +48,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     override fun sendChatLogsStream(requests: Flow<ChatLog>): Flow<ChatBack> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
         println("[Central] $source connected to chat logs streaming.")
         val sID = db.getOrCreateServerIdFromName(source)
         discordMessageFlows[sID] = channel
@@ -71,6 +72,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     override fun subscribeToBans(request: Empty): Flow<BanRequest> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
         println("[Central] $source subscribed to bans")
 
         banSubscribers.put(source, channel)?.close()
@@ -78,6 +80,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         try {
             awaitCancellation()
         } finally {
+            @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
             println("[Central] $source disconnected")
             banSubscribers.remove(source)
 
@@ -103,12 +106,14 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     override fun subscribeToCommands(requests: Flow<CommandResult>): Flow<Command> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
         println("[Central] Agent subscribed to commands: $source")
 
         commandSubscribers.put(source, channel)?.close()
 
         requests
             .onCompletion {
+                @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
                 println("[Central] Agent disconnected from commands: $source")
                 commandSubscribers.remove(source)
             }
@@ -121,10 +126,12 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     override fun statusStream(requests: Flow<StatusResponse>): Flow<StatusRequest> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
+        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
         println("[Central] $source status set up")
         statusProviders.put(source, channel)?.close()
         requests
             .onCompletion {
+                @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
                 println("[Central] $source disconnected from status stream")
                 statusProviders.remove(source)
             }
@@ -225,8 +232,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun getBanList(request: Empty): BanList {
         val bans = db.getAllBans()
         val requestBuilder = BanList.newBuilder()
-        for (ban in bans) {
-            requestBuilder.addBans(Ban.newBuilder().setSteamID(ban.steamID.toLong()).setReason(ban.reason))
+        for ((steamID, _, reason) in bans) {
+            requestBuilder.addBans(Ban.newBuilder().setSteamID(steamID.toLong()).setReason(reason))
         }
         return requestBuilder.build()
     }

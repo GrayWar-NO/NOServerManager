@@ -1,6 +1,5 @@
 package com.graywar.noServerManager.dbManager.Discord
 
-import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
 import com.graywar.noServerManager.proto.StatusResponse
 import dev.kord.common.entity.Snowflake
@@ -17,7 +16,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
 
-class Status(val db: DB, val channelID: Snowflake, val guildID: Snowflake, val grpc: EdgeAgentServiceImpl) :
+class Status(val channelID: Snowflake, val guildID: Snowflake, val grpc: EdgeAgentServiceImpl) :
     Extension() {
     override val name: String = "Server status"
 

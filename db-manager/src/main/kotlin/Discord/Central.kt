@@ -104,8 +104,8 @@ class CentralServerExtension(
             action {
                 try {
                     var contentStr = ""
-                    for (row in db.getAllServers()) {
-                        contentStr += "${row.key}: ${row.value}\n"
+                    for ((key, value) in db.getAllServers()) {
+                        contentStr += "$key: $value\n"
                     }
                     respond {
                         content = contentStr

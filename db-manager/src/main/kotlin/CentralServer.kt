@@ -71,6 +71,7 @@ class CentralServer {
         }
         manageEndingBans()
         embeddedServer(Netty, config.api.port, module = createModule(api)).start()
+        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
         println("[Central] gRPC server started on ${config.port}")
         server.awaitTermination()
     }
