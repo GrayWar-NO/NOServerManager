@@ -16,7 +16,7 @@ application{
     mainClass.set("com.graywar.noServerManager.dbManager.CentralServerKt")
 }
 
-val ktorVersion = "3.4.1"
+val ktorVersion = "3.5.1"
 val exposedVersion = "1.1.1"
 
 dependencies {
