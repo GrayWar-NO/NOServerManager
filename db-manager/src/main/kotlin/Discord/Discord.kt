@@ -135,7 +135,9 @@ class Discord(
 
 
 fun escapeDiscordMarkdown(text: String): String =
-    text.replace(Regex("""([\\*_~`|>])"""), """\\$1""")
+    text
+        .replace(Regex("""([\\*_~`|#\[])"""), """\\$1""")
+        .replace(Regex(""":?//"""), "$0\u200B")
 
 fun escapeForCodeBlock(text: String) =
     text.replace("```", "``\u200B`")
