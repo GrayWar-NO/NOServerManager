@@ -3,10 +3,14 @@ package com.graywar.noServerManager.dbManager.Discord
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.DataBaseConfig
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
+import com.graywar.noServerManager.proto.BanRequest
 import com.graywar.noServerManager.proto.ChatBack
 import com.graywar.noServerManager.proto.ChatLog
 import com.graywar.noServerManager.proto.JoinLeaveLog
+import com.graywar.noServerManager.proto.KillLog
+import com.graywar.noServerManager.proto.LinkUser
 import com.graywar.noServerManager.proto.missionStatus
+import com.graywar.noServerManager.proto.serverReport
 import dev.kord.common.entity.Snowflake
 import dev.kord.gateway.Intent
 import dev.kord.gateway.PrivilegedIntent
@@ -67,7 +71,7 @@ class Discord(
 
         val guildID = Snowflake(config.guildID)
 
-        val statusExt = Status( Snowflake(config.statusChannel), guildID, cbEdgeAgent)
+        val statusExt = Status(Snowflake(config.statusChannel), guildID, cbEdgeAgent)
         teamKillExt = TeamKillExtension(config.teamKillWebhook, moderatorRole)
         linkExt = LinkMeExtension(
             db,
@@ -130,10 +134,28 @@ class Discord(
         botJob?.cancel()
     }
 
+    suspend fun sendCallbackEvent(message: CallbackEvent){
+        when (message) {
+            is CallbackEvent.BanEvent -> banWebhookExt.log(message.event, message.source)
+            is CallbackEvent.LinkEvent -> linkExt.newLink(message.event)
+            is CallbackEvent.ReportEvent -> teamKillExt.sendReport(message.event, message.source)
+            is CallbackEvent.ServerEvent -> sendLoggedEvent(message.event, message.serverID)
+            is CallbackEvent.TeamKillEvent -> teamKillExt.sendTeamKill(message.event.first, message.event.second, message.event.third, message.source)
+        }
+    }
+
     suspend fun sendLoggedEvent(message: LoggedServerEvent, server: Int) {
         serverMessageExtensions[server - 1].sendEvent(message)
     }
 
+}
+
+sealed interface CallbackEvent {
+    data class ServerEvent(val event: LoggedServerEvent, val serverID: Int) : CallbackEvent
+    data class TeamKillEvent(val event: Triple<KillLog, String, String>, val source: String): CallbackEvent
+    data class LinkEvent(val event: LinkUser): CallbackEvent
+    data class ReportEvent(val event: serverReport, val source: String): CallbackEvent
+    data class BanEvent(val event: BanRequest, val source: String): CallbackEvent
 }
 
 sealed interface LoggedServerEvent {

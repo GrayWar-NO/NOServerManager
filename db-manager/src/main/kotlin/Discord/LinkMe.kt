@@ -4,6 +4,7 @@ import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.proto.LinkUser
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.exception.EntityNotFoundException
+import dev.kordex.core.checks.userFor
 import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.int
 import dev.kordex.core.extensions.Extension
@@ -11,36 +12,46 @@ import dev.kordex.core.extensions.ephemeralSlashCommand
 import dev.kordex.i18n.Key
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-class LinkMeArguments: Arguments() {
-    val code by int {
-        name = Key("code")
-        description = Key("code you got in the game")
-    }
-}
 
 class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Snowflake): Extension() {
     override val name: String = "linkMe"
     val codesToSteamIDs = mutableMapOf<Int, ULong>()
+
+    inner class LinkMeArguments: Arguments() {
+        val code by int {
+            name = Key("code")
+            description = Key("code you got in the game")
+        }
+
+        override fun validate(locale: Locale) {
+            super.validate(locale)
+            if (!codesToSteamIDs.containsKey(code)){
+                error("the code $code you have given was not registered. Use /linkme in-game first!")
+            }
+        }
+    }
 
     override suspend fun setup() {
         ephemeralSlashCommand(::LinkMeArguments) {
             name = Key("linkme")
             description = Key("Links your discord to your in-game stats. Use /linkme in-game first!")
 
+            check {
+                val user = userFor(event)
+                if (user == null) {
+                    fail(Key("User not found."))
+                    return@check
+                }
+                if (db.isUserInDb(user.id.toString())) {
+                    fail(Key("Your discord was already linked. You cannot do it again."))
+                }
+            }
+
             action {
-                if (db.isUserInDb(user.id.toString())){
-                    respond { content = "Your discord was already linked. You cannot do it again." }
-                    return@action
-                }
-                if (!codesToSteamIDs.keys.contains(arguments.code)) {
-                    respond {
-                        content = "The code ${arguments.code} you have given was not registered. Use /linkme in-game first!"
-                    }
-                    return@action
-                }
                 val steamID = codesToSteamIDs[arguments.code]!!
                 db.addLink(steamID, user.id.toString())
                 addLinkedRole(user.id)

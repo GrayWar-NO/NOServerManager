@@ -62,12 +62,8 @@ class CentralServer {
         server.start()
         if (config.discord.enable){
             discord.start()
-            edgeAgent.setLoggedEventCallback(discord::sendLoggedEvent)
-            edgeAgent.setTKCallback(discord.teamKillExt::sendTeamKill)
-            edgeAgent.setLinkCallback(discord.linkExt::newLink)
-            edgeAgent.setReportCallback(discord.teamKillExt::sendReport)
+            edgeAgent.setEventCallback(discord::sendCallbackEvent)
             edgeAgent.setPermissionBreakdownGetter(discord.modListExt::get)
-            edgeAgent.setBanLoggerCallback(discord.banWebhookExt::log)
         }
         manageEndingBans()
         embeddedServer(Netty, config.api.port, module = createModule(api)).start()

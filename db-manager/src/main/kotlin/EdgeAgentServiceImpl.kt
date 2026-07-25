@@ -2,6 +2,7 @@ package com.graywar.noServerManager.dbManager
 
 import com.google.protobuf.Empty
 import com.google.protobuf.Timestamp
+import com.graywar.noServerManager.dbManager.Discord.CallbackEvent
 import com.graywar.noServerManager.dbManager.Discord.LoggedServerEvent
 import com.graywar.noServerManager.proto.*
 import io.grpc.Context
@@ -36,13 +37,9 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     private val serversToMissionIDs = mutableMapOf<String, Long>()
     internal var discordMessageFlows = mutableMapOf<Int, SendChannel<ChatBack>>()
 
-    private var discordLoggedEventCallback: (suspend (LoggedServerEvent, Int) -> Unit)? = null
-    private var discordTKCallback: (suspend (KillLog, String, String, String) -> Unit)? = null
-    private var discordLinkCallback: (suspend (LinkUser) -> Unit)? = null
-    private var discordReportCallback: (suspend (serverReport, String) -> Unit)? = null
-    private var discordBanCallback: (suspend (BanRequest, String) -> Unit)? = null
+    private var discordEventsCallback: (suspend (CallbackEvent) -> Unit)? = null
 
-    private var permissionBreakdownCallback: (suspend () -> permissionBreakdown)? = null
+    private var permissionBreakdownGetter: (suspend () -> permissionBreakdown)? = null
 
     private val pendingCommands = mutableMapOf<String, CompletableDeferred<String>>()
     private val pendingStatusRequests = mutableMapOf<String, CompletableDeferred<StatusResponse>>()
@@ -62,7 +59,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     serversToMissionIDs[source] ?: 1,
                     request.message
                 )
-                discordLoggedEventCallback?.invoke(LoggedServerEvent.ChatEvent(request), sID)
+                discordEventsCallback?.invoke(CallbackEvent.ServerEvent(LoggedServerEvent.ChatEvent(request), sID))
             }
 
         awaitClose {
@@ -226,7 +223,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                 channel.trySend(request)
                 println("[Ban] Sending ban for ${request.steamID} to server $key")
             }
-        discordBanCallback?.invoke(request, "all")
+        discordEventsCallback?.invoke(CallbackEvent.BanEvent(request, excludedServers.joinToString(", ")))
     }
 
     override suspend fun getBanList(request: Empty): BanList {
@@ -261,8 +258,10 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendPlayerActivity(request: JoinLeaveLog): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            discordLoggedEventCallback?.invoke(
-                LoggedServerEvent.PlayerEvent(request), db.getOrCreateServerIdFromName(source)
+            discordEventsCallback?.invoke(
+                CallbackEvent.ServerEvent(
+                    LoggedServerEvent.PlayerEvent(request), db.getOrCreateServerIdFromName(source)
+                )
             )
 
             if (request.isOn) {
@@ -294,9 +293,11 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendMissionChange(request: missionStatus): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            discordLoggedEventCallback?.invoke(
-                LoggedServerEvent.MissionEvent(request),
-                db.getOrCreateServerIdFromName(source)
+            discordEventsCallback?.invoke(
+                CallbackEvent.ServerEvent(
+                    LoggedServerEvent.MissionEvent(request),
+                    db.getOrCreateServerIdFromName(source)
+                )
             )
 
             if (source in serversToMissionIDs.keys)
@@ -340,7 +341,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     }
 
     override suspend fun sendReport(request: serverReport): Ack {
-        discordReportCallback?.invoke(request, AgentIdInterceptor.AGENT_ID_CTX_KEY.get())
+        discordEventsCallback?.invoke(CallbackEvent.ReportEvent(request, AgentIdInterceptor.AGENT_ID_CTX_KEY.get()))
         return Ack.newBuilder().setOk(true).build()
     }
 
@@ -348,11 +349,15 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
             db.addTeamKill(serversToMissionIDs[source] ?: 1, request)
-            discordTKCallback?.invoke(
-                request,
-                db.getLastPlayerName(request.killer.toULong()),
-                db.getLastPlayerName(request.killed.toULong()),
-                source
+            discordEventsCallback?.invoke(
+                CallbackEvent.TeamKillEvent(
+                    Triple(
+                        request,
+                        db.getLastPlayerName(request.killer.toULong()),
+                        db.getLastPlayerName(request.killed.toULong())
+                    ),
+                    source
+                )
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -362,7 +367,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     }
 
     override suspend fun sendLinkCode(request: LinkUser): Ack {
-        discordLinkCallback?.invoke(request)
+        discordEventsCallback?.invoke(CallbackEvent.LinkEvent(request))
         return Ack.newBuilder().setOk(true).build()
     }
 
@@ -377,39 +382,18 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     }
 
     override suspend fun getStaffList(request: Empty): permissionBreakdown {
-        return permissionBreakdownCallback!!.invoke()
+        return permissionBreakdownGetter!!.invoke()
     }
 
-    fun setLoggedEventCallback(cb: (suspend (LoggedServerEvent, Int) -> Unit)) {
-        if (discordLoggedEventCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
-        discordLoggedEventCallback = cb
-    }
-
-    fun setTKCallback(cb: (suspend (KillLog, String, String, String) -> Unit)) {
-        if (discordTKCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
-        discordTKCallback = cb
-    }
-
-    fun setLinkCallback(cb: (suspend (LinkUser) -> Unit)) {
-        if (discordLinkCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
-        discordLinkCallback = cb
-    }
-
-    fun setReportCallback(cb: (suspend (serverReport, String) -> Unit)) {
-        if (discordReportCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
-        discordReportCallback = cb
+    fun setEventCallback(cb: (suspend (CallbackEvent) -> Unit)) {
+        if (discordEventsCallback != null) throw IllegalStateException("Tried to set a discord callback but it was already set.")
+        discordEventsCallback = cb
     }
 
     fun setPermissionBreakdownGetter(cb: (suspend () -> permissionBreakdown)) {
-        if (permissionBreakdownCallback != null) throw IllegalStateException("Tried to set a permission breakdown but it was already set.")
-        permissionBreakdownCallback = cb
+        if (permissionBreakdownGetter != null) throw IllegalStateException("Tried to set a permission breakdown but it was already set.")
+        permissionBreakdownGetter = cb
     }
-
-    fun setBanLoggerCallback(cb: (suspend (BanRequest, String) -> Unit)) {
-        if (discordBanCallback != null) throw IllegalStateException("Tried to set the ban callback but it was already set.")
-        discordBanCallback = cb
-    }
-
 }
 
 class AgentIdInterceptor : ServerInterceptor {
