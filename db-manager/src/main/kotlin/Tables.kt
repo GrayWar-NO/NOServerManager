@@ -3,21 +3,21 @@ package com.graywar.noServerManager.dbManager
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.datetime.timestamp
 
-object Servers: Table() {
+object Servers : Table() {
     val id = integer("id").autoIncrement()
     val name = varchar("name", 50)
     val maxPlayers = integer("maxPlayers")
     override val primaryKey = PrimaryKey(id)
 }
 
-object Missions: Table() {
+object Missions : Table() {
     val id = integer("id").autoIncrement()
     val pvp = bool("pvp")
     val name = varchar("name", 50)
     override val primaryKey = PrimaryKey(id)
 }
 
-object ServerMissions: Table() {
+object ServerMissions : Table() {
     val id = long("id").autoIncrement()
     val server = integer("server").references(Servers.id)
     val mission = integer("mission").references(Missions.id)
@@ -26,7 +26,7 @@ object ServerMissions: Table() {
     override val primaryKey = PrimaryKey(id)
 }
 
-object MissionPlayers: Table() {
+object MissionPlayers : Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
     val name = varchar("name", 50)
@@ -38,7 +38,7 @@ object MissionPlayers: Table() {
     override val primaryKey = PrimaryKey(id)
 }
 
-object Sorties: Table(){
+object Sorties : Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
     val aircraft = varchar("aircraft", 50)
@@ -48,7 +48,7 @@ object Sorties: Table(){
     override val primaryKey = PrimaryKey(id)
 }
 
-object Bans: Table() {
+object Bans : Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
     val reason = varchar("reason", 500)
@@ -58,7 +58,7 @@ object Bans: Table() {
     override val primaryKey = PrimaryKey(id)
 }
 
-object Kicks: Table() {
+object Kicks : Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
     val reason = varchar("reason", 500)
@@ -66,7 +66,7 @@ object Kicks: Table() {
     override val primaryKey = PrimaryKey(id)
 }
 
-object Warns: Table() {
+object Warns : Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
     val reason = varchar("reason", 500)
@@ -75,19 +75,19 @@ object Warns: Table() {
 }
 
 
-object Kills: Table() {
+object Kills : Table() {
     val id = long("id").autoIncrement()
     val mission = long("mission").references(ServerMissions.id)
     val killerID = ulong("killerid").nullable()
     val killerName = varchar("killername", 50).nullable()
     val killedID = ulong("killedID").nullable()
     val killedName = varchar("killedName", 50)
-    val weapon = varchar("weapon",100).nullable()
+    val weapon = varchar("weapon", 100).nullable()
     val time = timestamp("time")
     override val primaryKey = PrimaryKey(id)
 }
 
-object TeamKills: Table() {
+object TeamKills : Table() {
     val id = long("id").autoIncrement()
     val mission = long("mission").references(ServerMissions.id)
     val killerID = ulong("killerid")
@@ -99,7 +99,7 @@ object TeamKills: Table() {
     override val primaryKey = PrimaryKey(id)
 }
 
-object Messages: Table() {
+object Messages : Table() {
     val id = long("id").autoIncrement()
     val sender = ulong("sender")
     val time = timestamp("time")
@@ -109,17 +109,17 @@ object Messages: Table() {
     override val primaryKey = PrimaryKey(id)
 }
 
-object NoTrack: Table() {
+object NoTrack : Table() {
     val user = ulong("user")
     override val primaryKey = PrimaryKey(user)
 }
 
-object DiscordPlayers: Table() {
+object DiscordPlayers : Table() {
     val steamID = ulong("steamid").uniqueIndex()
     val discordName = varchar("discord_name", 32).uniqueIndex()
 }
 
-object Donations: Table() {
+object Donations : Table() {
     val id = long("id").autoIncrement()
     val donatorSteamID = ulong("donatorSteamId")
     val receiverSteamID = ulong("receiverSteamId")
@@ -127,3 +127,8 @@ object Donations: Table() {
     val timestamp = timestamp("timestamp")
     override val primaryKey = PrimaryKey(id)
 }
+
+val tables = arrayOf(
+    Servers, Missions, ServerMissions, Sorties, MissionPlayers, Bans, Kicks, Kills,
+    TeamKills, Messages, NoTrack, Warns, DiscordPlayers, Donations
+)

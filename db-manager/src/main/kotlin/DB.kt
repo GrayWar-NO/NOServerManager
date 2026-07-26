@@ -43,22 +43,11 @@ class DB() {
 
     fun init() {
         transaction {
-            SchemaUtils.create(Servers)
-            SchemaUtils.create(Missions)
-            SchemaUtils.create(ServerMissions)
-            SchemaUtils.create(Sorties)
-            SchemaUtils.create(MissionPlayers)
-            SchemaUtils.create(Bans)
-            SchemaUtils.create(Kicks)
-            SchemaUtils.create(Kills)
-            SchemaUtils.create(TeamKills)
-            SchemaUtils.create(Messages)
-            SchemaUtils.create(NoTrack)
-            SchemaUtils.create(Warns)
-            SchemaUtils.create(DiscordPlayers)
-            SchemaUtils.create(Donations)
+            SchemaUtils.create(*tables)
+            MigrationUtils.statementsRequiredForDatabaseMigration(*tables, withLogs = true).forEach { stmt -> exec(stmt) }
+
         }
-        migrateAndCleanupBans()
+        CleanupBans()
     }
 
     fun getAllServers(): Map<Int, String> {
@@ -302,10 +291,8 @@ class DB() {
         }
     }
 
-    fun migrateAndCleanupBans() {
+    fun CleanupBans() {
         transaction {
-            MigrationUtils.statementsRequiredForDatabaseMigration(Bans, withLogs = true).forEach { stmt -> exec(stmt) }
-
             val allBans = Bans
                 .select(Bans.id, Bans.steamID, Bans.endTime)
                 .orderBy(Bans.id to SortOrder.DESC)
