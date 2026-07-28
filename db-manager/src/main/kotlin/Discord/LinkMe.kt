@@ -52,7 +52,13 @@ class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Sn
             }
 
             action {
-                val steamID = codesToSteamIDs[arguments.code]!!
+                val steamID = codesToSteamIDs[arguments.code]
+                if (steamID == null) {
+                    respond {
+                        content = "The code you entered is invalid."
+                    }
+                    return@action
+                }
                 db.addLink(steamID, user.id.toString())
                 addLinkedRole(user.id)
                 codesToSteamIDs.remove(arguments.code)
