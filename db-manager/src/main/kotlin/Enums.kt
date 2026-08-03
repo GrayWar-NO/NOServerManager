@@ -12,7 +12,8 @@ enum class Aircraft(val craft: String) {
     Ifrit("KR-67 Ifrit"),
     Medusa("EW-25 Medusa"),
     Darkreach("SFB-81 Darkreach"),
-    Alkyon("Alkyon AB-4")
+    Alkyon("Alkyon AB-4"),
+    Vagrant("VT-7 Vagrant"),
 }
 
 
