@@ -26,13 +26,32 @@ import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.seconds
 
 data class ServerConfig(val publicChat: String, val privateChat: String)
+data class LogFormat(val format: String, val sanitizeForCode: Boolean, val sanitizeForDiscord: Boolean)
+data class OnOffFormat(
+    val onFormat: String,
+    val offFormat: String,
+    val sanitizeForCode: Boolean,
+    val sanitizeForDiscord: Boolean
+)
+
+data class OnOffEventFormat(val publicFormat: OnOffFormat, val privateFormat: OnOffFormat)
+data class LogEventFormat(val publicFormat: LogFormat, val privateFormat: LogFormat)
+data class ChatMessageFormatConfig(
+    val chatMessageFormat: LogEventFormat,
+    val missionChangeFormat: OnOffEventFormat,
+    val joinLeaveFormat: OnOffEventFormat,
+)
+
 data class DiscordConfig(
     val enable: Boolean,
     val token: String,
     val guildID: ULong,
     val statusChannel: ULong,
     val serverWebhooks: List<ServerConfig>,
+    val chatMessages: ChatMessageFormatConfig,
     val teamKillWebhook: String,
+    val teamKillFormat: LogFormat,
+    val reportFormat: LogFormat,
     val banWebhook: String,
     val moderatorRole: ULong,
     val adminRole: ULong,
@@ -58,8 +77,8 @@ class Discord(
 
 
     suspend fun start() {
-        serverMessageExtensions = config.serverWebhooks.mapIndexed { index, config ->
-            val ext = ChatMessagesExtension(index, config, db) { username, content ->
+        serverMessageExtensions = config.serverWebhooks.mapIndexed { index, serverConfig ->
+            val ext = ChatMessagesExtension(index, serverConfig, config.chatMessages, db) { username, content ->
                 cbEdgeAgent.discordMessageFlows[index + 1]?.trySend(
                     ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
                 )
@@ -70,7 +89,8 @@ class Discord(
         val guildID = Snowflake(config.guildID)
 
         val statusExt = Status(Snowflake(config.statusChannel), guildID, cbEdgeAgent)
-        teamKillExt = TeamKillExtension(config.teamKillWebhook, moderatorRole)
+        teamKillExt =
+            TeamKillExtension(config.teamKillWebhook, config.teamKillFormat, config.reportFormat, moderatorRole)
         linkExt = LinkMeExtension(
             db,
             linkedRole = Snowflake(config.linkedRole),
@@ -124,7 +144,7 @@ class Discord(
 
         scope.launch {
             linkExt.initLinkedRoles()
-            println("Finised initializing discord roles")
+            println("Finished initializing discord roles")
         }
     }
 
@@ -132,13 +152,18 @@ class Discord(
         botJob?.cancel()
     }
 
-    suspend fun sendCallbackEvent(message: CallbackEvent){
+    suspend fun sendCallbackEvent(message: CallbackEvent) {
         when (message) {
             is CallbackEvent.BanEvent -> banWebhookExt.log(message.event, message.source)
             is CallbackEvent.LinkEvent -> linkExt.newLink(message.event)
             is CallbackEvent.ReportEvent -> teamKillExt.sendReport(message.event, message.source)
             is CallbackEvent.ServerEvent -> sendLoggedEvent(message.event, message.serverID)
-            is CallbackEvent.TeamKillEvent -> teamKillExt.sendTeamKill(message.event.first, message.event.second, message.event.third, message.source)
+            is CallbackEvent.TeamKillEvent -> teamKillExt.sendTeamKill(
+                message.event.first,
+                message.event.second,
+                message.event.third,
+                message.source
+            )
         }
     }
 
@@ -150,10 +175,10 @@ class Discord(
 
 sealed interface CallbackEvent {
     data class ServerEvent(val event: LoggedServerEvent, val serverID: Int) : CallbackEvent
-    data class TeamKillEvent(val event: Triple<KillLog, String, String>, val source: String): CallbackEvent
-    data class LinkEvent(val event: LinkUser): CallbackEvent
-    data class ReportEvent(val event: serverReport, val source: String): CallbackEvent
-    data class BanEvent(val event: BanRequest, val source: String): CallbackEvent
+    data class TeamKillEvent(val event: Triple<KillLog, String, String>, val source: String) : CallbackEvent
+    data class LinkEvent(val event: LinkUser) : CallbackEvent
+    data class ReportEvent(val event: serverReport, val source: String) : CallbackEvent
+    data class BanEvent(val event: BanRequest, val source: String) : CallbackEvent
 }
 
 sealed interface LoggedServerEvent {

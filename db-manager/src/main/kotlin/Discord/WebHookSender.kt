@@ -29,7 +29,7 @@ class WebhookSender(
         val name = username
         send {
             this.username = name
-            this.content = escapeDiscordMarkdown(content)
+            this.content = content
             allowedMentions {
                 users.clear()
                 roles.clear()
@@ -41,7 +41,7 @@ class WebhookSender(
     suspend fun send(username: String, content: String) {
         send {
             this.username = username
-            this.content = escapeDiscordMarkdown(content)
+            this.content = content
             allowedMentions {
                 users.clear()
                 roles.clear()
