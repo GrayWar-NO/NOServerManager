@@ -53,6 +53,7 @@ class DB() {
     fun getAllServers(): Map<Int, String> {
         return transaction {
             Servers.selectAll()
+                .orderBy(Servers.id)
                 .associate { row ->
                     row[Servers.id] to row[Servers.name]
                 }
