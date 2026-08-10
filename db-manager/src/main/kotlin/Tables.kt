@@ -23,6 +23,7 @@ object ServerMissions : Table() {
     val mission = integer("mission").references(Missions.id)
     val startTime = timestamp("starttime")
     val endTime = timestamp("endtime").nullable()
+    val winner = varchar("winner", 50).nullable()
     override val primaryKey = PrimaryKey(id)
 }
 
@@ -40,6 +41,7 @@ object MissionPlayers : Table() {
 
 object Sorties : Table() {
     val id = long("id").autoIncrement()
+    val serverID = integer("server").references(Servers.id).nullable()
     val steamID = ulong("steamid")
     val aircraft = varchar("aircraft", 50)
     val startTime = timestamp("startTime")

@@ -44,7 +44,8 @@ class DB() {
     fun init() {
         transaction {
             SchemaUtils.create(*tables)
-            MigrationUtils.statementsRequiredForDatabaseMigration(*tables, withLogs = true).forEach { stmt -> exec(stmt) }
+            MigrationUtils.statementsRequiredForDatabaseMigration(*tables, withLogs = true)
+                .forEach { stmt -> exec(stmt) }
 
         }
         CleanupBans()
@@ -112,23 +113,6 @@ class DB() {
         return result[Missions.id]
     }
 
-    fun getCurrentMissionIDForServer(name: String): Long {
-        val result = transaction {
-            Servers
-                .join(
-                    ServerMissions,
-                    JoinType.INNER,
-                    additionalConstraint = { Servers.id eq ServerMissions.server })
-                .selectAll()
-                .where { Servers.name eq name and ServerMissions.endTime.isNull() }
-                .firstOrNull()
-        }
-        if (result == null) {
-            throw NullPointerException("Server $name not found or has no ongoing mission.")
-        }
-        return result[ServerMissions.id]
-    }
-
     fun newServer(name: String, maxPlayers: Int) {
         transaction {
             Servers.insert {
@@ -171,11 +155,18 @@ class DB() {
         }
     }
 
-    fun endMission(mission: Long, time: Timestamp) {
-        endAllSorties(time)
-        transaction {
-            ServerMissions.update({ ServerMissions.id eq mission })
-            { it[endTime] = transformTimestamp(time) }
+    fun endMission(server: Int, time: Timestamp, winner: String): Long {
+        endAllSortiesOnServer(server, time)
+
+        return transaction {
+
+            val missionID = getCurrentMissionIDForServer(server)
+
+            ServerMissions.update({ ServerMissions.id eq missionID }) {
+                it[endTime] = transformTimestamp(time)
+                it[ServerMissions.winner] = winner
+            }
+            missionID
         }
     }
 
@@ -188,10 +179,31 @@ class DB() {
         }
     }
 
-    fun startMission(name: String, time: Timestamp, serverName: String): Long {
-        val serverID = getOrCreateServerIdFromName(serverName)
+    fun getCurrentMissionIDForServer(serverID: Int): Long{
+        return transaction {
+            val result = ServerMissions
+                .selectAll()
+                .where { ServerMissions.server eq serverID and ServerMissions.endTime.isNull() }
+                .singleOrNull()
+            if (result == null) 1 else result[ServerMissions.id]
+        }
+    }
+
+
+    fun startMission(name: String, time: Timestamp, serverID: Int): Long {
         val missionID = getOrCreateMissionIdFromName(name)
         val result = transaction {
+
+            val currentMissionID = ServerMissions
+                .selectAll()
+                .where { ServerMissions.server eq serverID and ServerMissions.endTime.isNull() }
+                .singleOrNull()?.get(ServerMissions.id)
+
+            if (currentMissionID != null) {
+                endMission(serverID, time, "unknown")
+                closeAllPlayers(currentMissionID)
+            }
+
             ServerMissions.insert {
                 it[server] = serverID
                 it[mission] = missionID
@@ -201,9 +213,10 @@ class DB() {
         return result
     }
 
-    fun startSortie(steamID: ULong, aircraft: String, time: Timestamp): Long {
+    fun startSortie(serverID: Int, steamID: ULong, aircraft: String, time: Timestamp): Long {
         return transaction {
             Sorties.insert {
+                it[Sorties.serverID] = serverID
                 it[Sorties.steamID] = steamID
                 it[Sorties.aircraft] = aircraft
                 it[startTime] = transformTimestamp(time)
@@ -220,9 +233,9 @@ class DB() {
         }
     }
 
-    fun endAllSorties(time: Timestamp) {
+    fun endAllSortiesOnServer(serverID: Int, time: Timestamp) {
         transaction {
-            Sorties.update({ Sorties.endTime.isNull() }) {
+            Sorties.update({ Sorties.endTime.isNull() and (Sorties.serverID eq serverID) }) {
                 it[endTime] = transformTimestamp(time)
                 it[Sorties.killed] = false
             }
