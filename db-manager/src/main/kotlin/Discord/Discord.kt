@@ -41,12 +41,14 @@ data class ChatMessageFormatConfig(
     val missionChangeFormat: OnOffEventFormat,
     val joinLeaveFormat: OnOffEventFormat,
 )
+data class StatusConfig(val channel: ULong, val excludedServers: List<Int>)
+
 
 data class DiscordConfig(
     val enable: Boolean,
     val token: String,
     val guildID: ULong,
-    val statusChannel: ULong,
+    val status: StatusConfig,
     val serverWebhooks: List<ServerConfig>,
     val chatMessages: ChatMessageFormatConfig,
     val teamKillWebhook: String,
@@ -88,7 +90,7 @@ class Discord(
 
         val guildID = Snowflake(config.guildID)
 
-        val statusExt = Status(Snowflake(config.statusChannel), guildID, cbEdgeAgent)
+        val statusExt = Status(config.status, guildID, cbEdgeAgent)
         teamKillExt =
             TeamKillExtension(config.teamKillWebhook, config.teamKillFormat, config.reportFormat, moderatorRole)
         linkExt = LinkMeExtension(

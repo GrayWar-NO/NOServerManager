@@ -16,16 +16,17 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
 
-class Status(val channelID: Snowflake, val guildID: Snowflake, val grpc: EdgeAgentServiceImpl) :
+class Status(val config: StatusConfig, val guildID: Snowflake, val grpc: EdgeAgentServiceImpl) :
     Extension() {
     override val name: String = "Server status"
+    val channelID = Snowflake(config.channel)
 
     var message: Message? = null
 
     override suspend fun setup() {
         val guild = kord.getGuild(guildID)
         val channel = guild.getChannel(channelID) as? TextChannel ?: return
-        val data = grpc.getAllServerStatuses()
+        val data = grpc.getAllServerStatuses(config.excludedServers)
         message = channel.createEmbed { serverStatus(data) }
 
         kord.launch {
@@ -42,7 +43,7 @@ class Status(val channelID: Snowflake, val guildID: Snowflake, val grpc: EdgeAge
 
 
     suspend fun update() {
-        val data = grpc.getAllServerStatuses()
+        val data = grpc.getAllServerStatuses(config.excludedServers)
         message = message?.edit { embed { serverStatus(data) } }
     }
 

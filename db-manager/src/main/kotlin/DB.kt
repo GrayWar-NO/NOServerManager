@@ -51,9 +51,10 @@ class DB() {
         CleanupBans()
     }
 
-    fun getAllServers(): Map<Int, String> {
+    fun getAllServers(excludeIds: List<Int> = emptyList()): Map<Int, String> {
         return transaction {
             Servers.selectAll()
+                .where { Servers.id notInList excludeIds }
                 .orderBy(Servers.id)
                 .associate { row ->
                     row[Servers.id] to row[Servers.name]

@@ -119,8 +119,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             }
     }
 
-    suspend fun getAllServerStatuses(): Map<String, StatusResponse> = coroutineScope {
-        db.getAllServers().values
+    suspend fun getAllServerStatuses(excludeIds: List<Int> = emptyList()): Map<String, StatusResponse> = coroutineScope {
+        db.getAllServers(excludeIds).values
             .map { server ->
                 async {
                     server to requestStatus(server)
