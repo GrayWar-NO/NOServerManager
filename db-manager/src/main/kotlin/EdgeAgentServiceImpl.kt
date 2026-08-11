@@ -238,7 +238,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendPlayerActivity(request: JoinLeaveLog): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            val serverID = db.getOrCreateMissionIdFromName(source)
+            val serverID = db.getOrCreateServerIdFromName(source)
             discordEventsCallback?.invoke(
                 CallbackEvent.ServerEvent(
                     LoggedServerEvent.PlayerEvent(request), db.getOrCreateServerIdFromName(source)
@@ -274,7 +274,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendMissionChange(request: missionStatus): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            val serverID = db.getOrCreateMissionIdFromName(source)
+            val serverID = db.getOrCreateServerIdFromName(source)
             discordEventsCallback?.invoke(
                 CallbackEvent.ServerEvent(
                     LoggedServerEvent.MissionEvent(request),
@@ -302,7 +302,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         try {
             if (request.start) {
                 val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-                val serverID = db.getOrCreateMissionIdFromName(source)
+                val serverID = db.getOrCreateServerIdFromName(source)
                 db.startSortie(serverID, request.steamID.toULong(), request.planeName, request.time)
             } else {
                 db.endSortie(request.steamID.toULong(), request.killed, request.time)
@@ -317,7 +317,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendKill(request: KillLog): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            val serverID = db.getOrCreateMissionIdFromName(source)
+            val serverID = db.getOrCreateServerIdFromName(source)
             db.addKill(db.getCurrentMissionIDForServer(serverID), request)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -334,7 +334,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     override suspend fun sendTeamKill(request: KillLog): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-            val serverID = db.getOrCreateMissionIdFromName(source)
+            val serverID = db.getOrCreateServerIdFromName(source)
             db.addTeamKill(db.getCurrentMissionIDForServer(serverID), request)
             discordEventsCallback?.invoke(
                 CallbackEvent.TeamKillEvent(
