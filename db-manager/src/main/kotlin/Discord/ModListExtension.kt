@@ -1,7 +1,7 @@
 package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.dbManager.DB
-import com.graywar.noServerManager.proto.permissionBreakdown
+import com.graywar.noServerManager.proto.PermissionBreakdown
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.entity.Guild
 import dev.kordex.core.extensions.Extension
@@ -15,8 +15,8 @@ class ModListExtension(val guildId: Snowflake, val adminRole: Snowflake, val mod
         guild = kord.getGuild(guildId)
     }
 
-    suspend fun get(): permissionBreakdown {
-        val result = permissionBreakdown.newBuilder()
+    suspend fun get(): PermissionBreakdown {
+        val result = PermissionBreakdown.newBuilder()
         guild.members.collect { member ->
             val steamID = db.getSteamIDForDiscord(member.id.toString()) ?: return@collect
             if (member.roleIds.contains(adminRole)) result.addAdmins(steamID.toLong())

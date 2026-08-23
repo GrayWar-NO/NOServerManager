@@ -2,27 +2,14 @@ package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.dbManager.EdgeAgentServiceImpl
-import com.graywar.noServerManager.proto.BanRequest
-import com.graywar.noServerManager.proto.ChatBack
-import com.graywar.noServerManager.proto.ChatLog
-import com.graywar.noServerManager.proto.JoinLeaveLog
-import com.graywar.noServerManager.proto.KillLog
-import com.graywar.noServerManager.proto.LinkUser
-import com.graywar.noServerManager.proto.missionStatus
-import com.graywar.noServerManager.proto.serverReport
+import com.graywar.noServerManager.proto.*
 import dev.kord.common.entity.Snowflake
 import dev.kord.gateway.Intent
 import dev.kord.gateway.PrivilegedIntent
 import dev.kordex.core.builders.ExtensibleBotBuilder
-import io.ktor.client.HttpClient
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import io.ktor.client.plugins.HttpRequestRetry
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import kotlinx.coroutines.*
 import kotlin.time.Duration.Companion.seconds
 
 data class ServerConfig(val publicChat: String, val privateChat: String)
@@ -179,13 +166,13 @@ sealed interface CallbackEvent {
     data class ServerEvent(val event: LoggedServerEvent, val serverID: Int) : CallbackEvent
     data class TeamKillEvent(val event: Triple<KillLog, String, String>, val source: String) : CallbackEvent
     data class LinkEvent(val event: LinkUser) : CallbackEvent
-    data class ReportEvent(val event: serverReport, val source: String) : CallbackEvent
+    data class ReportEvent(val event: ServerReport, val source: String) : CallbackEvent
     data class BanEvent(val event: BanRequest, val source: String) : CallbackEvent
 }
 
 sealed interface LoggedServerEvent {
     data class ChatEvent(val event: ChatLog) : LoggedServerEvent
-    data class MissionEvent(val event: missionStatus) : LoggedServerEvent
+    data class MissionEvent(val event: MissionStatus) : LoggedServerEvent
     data class PlayerEvent(val event: JoinLeaveLog) : LoggedServerEvent
 }
 

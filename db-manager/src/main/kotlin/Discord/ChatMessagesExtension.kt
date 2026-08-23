@@ -3,13 +3,11 @@ package com.graywar.noServerManager.dbManager.Discord
 import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.proto.ChatLog
 import com.graywar.noServerManager.proto.JoinLeaveLog
-import com.graywar.noServerManager.proto.missionStatus
+import com.graywar.noServerManager.proto.MissionStatus
 import dev.kord.core.entity.effectiveName
 import dev.kord.core.event.message.MessageCreateEvent
 import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.event
-import kotlin.collections.emptyMap
-import kotlin.collections.mapOf
 
 class ChatMessagesExtension(
     index: Int,
@@ -88,7 +86,7 @@ class ChatMessagesExtension(
         publicMessageWebhook.send(public.format(argMap))
     }
 
-    suspend fun sendMissionChange(message: missionStatus) {
+    suspend fun sendMissionChange(message: MissionStatus) {
         val config = formatConfig.missionChangeFormat
         val public = TemplateString(
             LogFormat(

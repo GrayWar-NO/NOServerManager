@@ -1,7 +1,7 @@
 package com.graywar.noServerManager.dbManager.Discord
 
 import com.graywar.noServerManager.proto.KillLog
-import com.graywar.noServerManager.proto.serverReport
+import com.graywar.noServerManager.proto.ServerReport
 import dev.kord.common.entity.Snowflake
 import dev.kord.rest.builder.message.allowedMentions
 import dev.kordex.core.extensions.Extension
@@ -34,7 +34,7 @@ class TeamKillExtension(val url: String, val tkFormat: LogFormat, val reportForm
         }
     }
 
-    suspend fun sendReport(log: serverReport, server: String) {
+    suspend fun sendReport(log: ServerReport, server: String) {
         val text = TemplateString(reportFormat)
         val argMap: Map<String, String> = mapOf(
             "server" to server,
