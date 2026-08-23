@@ -21,7 +21,7 @@ import kotlin.time.Instant
 data class DataBaseConfig(val host: String, val port: Int, val name: String, val user: String, val password: String)
 
 data class Kill(val name: String?, val weapon: String, val unit: String, val isAircraft: Boolean)
-data class Sortie(val aircraft: Aircraft, val start: Instant, val elapsed: Duration, val died: Boolean)
+data class Sortie(val aircraft: String, val start: Instant, val elapsed: Duration, val died: Boolean)
 data class Mission(val name: String, val server: String, val start: Instant)
 data class UserReasonTime(val steamID: ULong, val username: String?, val reason: String, val time: Instant)
 data class UserCount(val steamID: ULong, val username: String?, val count: UInt)
@@ -549,7 +549,7 @@ class DB() {
             val elapsed: Duration = (sortie[Sorties.endTime] ?: Clock.System.now()).minus(sortie[Sorties.startTime])
 
             Sortie(
-                toAircraft(sortie[Sorties.aircraft]),
+                sortie[Sorties.aircraft],
                 sortie[Sorties.startTime],
                 elapsed,
                 sortie[Sorties.killed] ?: false

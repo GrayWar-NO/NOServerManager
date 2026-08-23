@@ -20,7 +20,3 @@ enum class Aircraft(val craft: String) {
 fun isAircraft(name: String): Boolean{
     return Aircraft.entries.any { it.craft == name }
 }
-
-fun toAircraft(name: String): Aircraft{
-    return Aircraft.entries.first { it.craft == name }
-}
