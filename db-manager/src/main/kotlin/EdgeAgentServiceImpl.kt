@@ -4,42 +4,32 @@ import com.google.protobuf.Empty
 import com.graywar.noServerManager.dbManager.Discord.CallbackEvent
 import com.graywar.noServerManager.dbManager.Discord.LoggedServerEvent
 import com.graywar.noServerManager.proto.*
-import io.grpc.Context
-import io.grpc.Contexts
-import io.grpc.Grpc
-import io.grpc.ServerCall
-import io.grpc.ServerCallHandler
-import io.grpc.ServerInterceptor
+import io.grpc.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.withTimeout
-import java.util.UUID
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
+import java.util.*
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 
 class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImplBase() {
     private val banSubscribers = mutableMapOf<String, SendChannel<BanRequest>>()
     private val commandSubscribers = mutableMapOf<String, SendChannel<Command>>()
-    private val statusProviders = mutableMapOf<String, SendChannel<StatusRequest>>()
     internal var discordMessageFlows = mutableMapOf<Int, SendChannel<ChatBack>>()
+
+    internal val serverStatuses = mutableMapOf<String, Pair<Instant, StatusResponse?>>()
 
     private var discordEventsCallback: (suspend (CallbackEvent) -> Unit)? = null
 
     private var permissionBreakdownGetter: (suspend () -> permissionBreakdown)? = null
 
     private val pendingCommands = mutableMapOf<String, CompletableDeferred<String>>()
-    private val pendingStatusRequests = mutableMapOf<String, CompletableDeferred<StatusResponse>>()
 
     override fun sendChatLogsStream(requests: Flow<ChatLog>): Flow<ChatBack> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
@@ -102,51 +92,20 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
     }
 
 
-    override fun statusStream(requests: Flow<StatusResponse>): Flow<StatusRequest> = channelFlow {
+    override suspend fun statusStream(requests: Flow<StatusResponse>): Empty {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
         @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
         println("[Central] $source status set up")
-        statusProviders.put(source, channel)?.close()
         requests
             .onCompletion {
                 @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
                 println("[Central] $source disconnected from status stream")
-                statusProviders.remove(source)
             }
             .collect { result ->
-                val requestId = result.requestID
-                pendingStatusRequests.remove(requestId)?.complete(result)
+                serverStatuses[source] = Pair(Clock.System.now(), result)
             }
+        return Empty.getDefaultInstance()
     }
-
-    suspend fun getAllServerStatuses(excludeIds: List<Int> = emptyList()): Map<String, StatusResponse> = coroutineScope {
-        db.getAllServers(excludeIds).values
-            .map { server ->
-                async {
-                    server to requestStatus(server)
-                }
-            }
-            .awaitAll()
-            .toMap()
-    }
-
-    suspend fun requestStatus(source: String, timeout: Duration = 30.seconds): StatusResponse {
-        val outChannel = statusProviders[source] ?: return StatusResponse.newBuilder().setOk(false).build()
-        val requestID = UUID.randomUUID().toString()
-        val result = CompletableDeferred<StatusResponse>()
-        pendingStatusRequests[requestID] = result
-        outChannel.send(statusRequest { this.requestID = requestID })
-        return try {
-            withTimeout(timeout) {
-                result.await()
-            }
-        } catch (_: TimeoutCancellationException) {
-            StatusResponse.newBuilder().setOk(false).build()
-        } finally {
-            pendingStatusRequests.remove(requestID)
-        }
-    }
-
 
     suspend fun sendCommand(
         clientId: String,
@@ -392,7 +351,7 @@ class AgentIdInterceptor : ServerInterceptor {
 
     override fun <ReqT, RespT> interceptCall(
         call: ServerCall<ReqT, RespT>,
-        headers: io.grpc.Metadata,
+        headers: Metadata,
         next: ServerCallHandler<ReqT, RespT>
     ): ServerCall.Listener<ReqT> {
 
