@@ -36,7 +36,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     private var discordEventsCallback: (suspend (CallbackEvent) -> Unit)? = null
 
-    private var permissionBreakdownGetter: (suspend () -> permissionBreakdown)? = null
+    private var permissionBreakdownGetter: (suspend () -> PermissionBreakdown)? = null
 
     private val pendingCommands = mutableMapOf<String, CompletableDeferred<String>>()
     private val pendingStatusRequests = mutableMapOf<String, CompletableDeferred<StatusResponse>>()
@@ -271,7 +271,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
-    override suspend fun sendMissionChange(request: missionStatus): Ack {
+    override suspend fun sendMissionChange(request: MissionStatus): Ack {
         try {
             val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
             val serverID = db.getOrCreateServerIdFromName(source)
@@ -298,7 +298,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
-    override suspend fun sendSortieChange(request: sortieStatus): Ack {
+    override suspend fun sendSortieChange(request: SortieStatus): Ack {
         try {
             if (request.start) {
                 val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
@@ -326,7 +326,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
-    override suspend fun sendReport(request: serverReport): Ack {
+    override suspend fun sendReport(request: ServerReport): Ack {
         discordEventsCallback?.invoke(CallbackEvent.ReportEvent(request, AgentIdInterceptor.AGENT_ID_CTX_KEY.get()))
         return Ack.newBuilder().setOk(true).build()
     }
@@ -368,7 +368,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         return Ack.newBuilder().setOk(true).build()
     }
 
-    override suspend fun getStaffList(request: Empty): permissionBreakdown {
+    override suspend fun getStaffList(request: Empty): PermissionBreakdown {
         return permissionBreakdownGetter!!.invoke()
     }
 
@@ -377,7 +377,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
         discordEventsCallback = cb
     }
 
-    fun setPermissionBreakdownGetter(cb: (suspend () -> permissionBreakdown)) {
+    fun setPermissionBreakdownGetter(cb: (suspend () -> PermissionBreakdown)) {
         if (permissionBreakdownGetter != null) throw IllegalStateException("Tried to set a permission breakdown but it was already set.")
         permissionBreakdownGetter = cb
     }

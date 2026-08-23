@@ -34,7 +34,7 @@ via the `/linkme` command.
 
 The API is an experimental feature (I should implement an enable switch for it tbh)
 
-It doesnt really matter what you put in there, it wont be exposed without special setup, and it does basically nothing
+It doesn't really matter what you put in there, it won't be exposed without special setup, and it does basically nothing
 either way unless you know what you are doing.
 
 ## Deploying a new central

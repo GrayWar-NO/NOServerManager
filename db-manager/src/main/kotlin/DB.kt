@@ -48,7 +48,7 @@ class DB() {
                 .forEach { stmt -> exec(stmt) }
 
         }
-        CleanupBans()
+        cleanupBans()
     }
 
     fun getAllServers(excludeIds: List<Int> = emptyList()): Map<Int, String> {
@@ -306,7 +306,7 @@ class DB() {
         }
     }
 
-    fun CleanupBans() {
+    fun cleanupBans() {
         transaction {
             val allBans = Bans
                 .select(Bans.id, Bans.steamID, Bans.endTime)
