@@ -4,21 +4,32 @@ import com.google.protobuf.Timestamp
 import com.graywar.noServerManager.proto.BanRequest
 import com.graywar.noServerManager.proto.KillLog
 import org.jetbrains.exposed.v1.core.*
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.SchemaUtils
-import org.jetbrains.exposed.v1.jdbc.deleteWhere
-import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
-data class DataBaseConfig(val host: String, val port: Int, val name: String, val user: String, val password: String)
+data class DataBaseConfig(
+    val host: String, val port: Int, val name: String, val user: String, val password: String,
+    val aircraft: HashSet<String> = hashSetOf(
+        "CI-22 Cricket",
+        "T/A-30 Compass",
+        "UH-90 Ibis",
+        "SAH-46 Chicane",
+        "A-19 Brawler",
+        "FS-12 Revoker",
+        "FS-20 Vortex",
+        "VL-49 Tarantula",
+        "KR-67 Ifrit",
+        "EW-25 Medusa",
+        "SFB-81 Darkreach",
+        "Alkyon AB-4",
+        "VT-7 Vagrant",
+    )
+)
 
 data class Kill(val name: String?, val weapon: String, val unit: String, val isAircraft: Boolean)
 data class Sortie(val aircraft: String, val start: Instant, val elapsed: Duration, val died: Boolean)
@@ -180,7 +191,7 @@ class DB() {
         }
     }
 
-    fun getCurrentMissionIDForServer(serverID: Int): Long{
+    fun getCurrentMissionIDForServer(serverID: Int): Long {
         return transaction {
             val result = ServerMissions
                 .selectAll()
@@ -492,7 +503,7 @@ class DB() {
         playerOnly: Boolean = false
     ): Pair<List<Kill>, Boolean> {
         val condition =
-            if (playerOnly) (Kills.killerID eq steamID) and (Kills.killedName inList Aircraft.entries.map { it.craft }) else Kills.killerID eq steamID
+            if (playerOnly) (Kills.killerID eq steamID) and (Kills.killedName inList config.aircraft) else Kills.killerID eq steamID
         val result = transaction {
             Kills
                 .select(Kills.killedID, Kills.killedName, Kills.weapon)
@@ -505,7 +516,7 @@ class DB() {
         val kills = result.map { kill ->
             val playerId = kill[Kills.killedID]
             val playerName = if (playerId != null) getLastPlayerName(playerId) else null
-            Kill(playerName, kill[Kills.weapon]!!, kill[Kills.killedName], isAircraft(kill[Kills.killedName]))
+            Kill(playerName, kill[Kills.weapon]!!, kill[Kills.killedName], config.aircraft.contains(kill[Kills.killedName]))
         }
         val hasNext = kills.size > pageLength
         return Pair(kills.take(pageLength), hasNext)
@@ -515,7 +526,7 @@ class DB() {
         val result = transaction {
             Kills
                 .select(Kills.killerID, Kills.killerName, Kills.weapon)
-                .where { Kills.killedID eq steamID and (Kills.killedName inList Aircraft.entries.map { it.craft }) }
+                .where { Kills.killedID eq steamID and (Kills.killedName inList config.aircraft) }
                 .orderBy(Kills.time to SortOrder.DESC)
                 .offset((pageNumber * pageLength).toLong())
                 .limit(pageLength + 1)
@@ -528,7 +539,7 @@ class DB() {
                 playerName,
                 kill[Kills.weapon] ?: "the ground",
                 kill[Kills.killerName] ?: "A crash",
-                isAircraft(kill[Kills.weapon] ?: "the ground")
+                config.aircraft.contains(kill[Kills.weapon] ?: "the ground")
             )
         }
         val hasNext = kills.size > pageLength
@@ -559,18 +570,23 @@ class DB() {
         return Pair(sorties, hasNext)
     }
 
+    fun getAircraftOrPlayerOnlyCond(steamID: ULong, aircraftOnly: Boolean, playerOnly: Boolean): Op<Boolean> {
+        var condition = Kills.killerID eq steamID
+        if (aircraftOnly || playerOnly) {
+            condition = condition and (Kills.killedName inList config.aircraft)
+        }
+        if (playerOnly) {
+            condition = condition and (Kills.killedID.isNotNull())
+        }
+        return condition
+    }
+
     fun getWeaponsToKillsForUser(
         steamID: ULong,
         aircraftOnly: Boolean = false,
         playerOnly: Boolean = false
     ): Map<String, Long> {
-        var condition = Kills.killerID eq steamID
-        if (aircraftOnly || playerOnly) {
-            condition = condition and (Kills.killedName inList Aircraft.entries.map { it.craft })
-        }
-        if (playerOnly) {
-            condition = condition and (Kills.killedID.isNotNull())
-        }
+        val condition = getAircraftOrPlayerOnlyCond(steamID, aircraftOnly, playerOnly)
         val countExpr = Kills.weapon.count()
         return transaction {
             Kills
@@ -590,13 +606,7 @@ class DB() {
         aircraftOnly: Boolean = false,
         playerOnly: Boolean = false
     ): Map<String, Long> {
-        var condition = Kills.killerID eq steamID
-        if (aircraftOnly || playerOnly) {
-            condition = condition and (Kills.killedName inList Aircraft.entries.map { it.craft })
-        }
-        if (playerOnly) {
-            condition = condition and (Kills.killedID.isNotNull())
-        }
+        val condition = getAircraftOrPlayerOnlyCond(steamID, aircraftOnly, playerOnly)
         val countExpr = Kills.killedName.count()
         return transaction {
             Kills
