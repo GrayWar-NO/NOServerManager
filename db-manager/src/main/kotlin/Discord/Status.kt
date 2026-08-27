@@ -111,7 +111,7 @@ class Status(
                 inline = true
             }
             field {
-                val timeString = if (time.isDistantPast) "never" else "t<:${time.epochSeconds}:R>"
+                val timeString = if (time.isDistantPast) "never" else "<t:${time.epochSeconds}:R>"
                 val restartString = if (status == null) "never" else "<t:${status.lastRestart.seconds}:R>"
 
                 this.name = "last restarted - last status received"
