@@ -83,7 +83,6 @@ class Discord(
 
         val guildID = Snowflake(config.guildID)
 
-        val statusExt = Status(config.status, guildID, cbEdgeAgent, db.getAllServers())
         teamKillExt =
             TeamKillExtension(config.teamKillWebhook, config.teamKillFormat, config.reportFormat, moderatorRole)
         linkExt = LinkMeExtension(
@@ -118,7 +117,7 @@ class Discord(
                 add { ModQueriesExtension(db, adminRole, moderatorRole) }
                 add { linkExt }
                 add { StatsExtension(db) }
-                add { statusExt }
+                add { Status(config.status, guildID, cbEdgeAgent, db.getAllServers()) }
                 add { modListExt }
                 add { banWebhookExt }
             }

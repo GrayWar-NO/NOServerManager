@@ -48,10 +48,10 @@ class ChatMessagesExtension(
             content = private.format(argMap)
         )
         if (message.messageChannel == "all") {
-            publicMessageWebhook.send {
-                username = userName
+            publicMessageWebhook.send(
+                username = userName,
                 content = public.format(argMap)
-            }
+            )
         }
     }
 
