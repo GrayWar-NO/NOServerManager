@@ -72,16 +72,16 @@ class Discord(
 
 
     suspend fun start() {
+        val guildID = Snowflake(config.guildID)
+
         serverMessageExtensions = config.serverWebhooks.mapIndexed { index, serverConfig ->
-            val ext = ChatMessagesExtension(index, serverConfig, config.chatMessages, db) { username, content ->
+            val ext = ChatMessagesExtension(index, serverConfig, config.chatMessages, db, guildID) { username, content ->
                 cbEdgeAgent.discordMessageFlows[index + 1]?.trySend(
                     ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
                 )
             }
             ext
         }
-
-        val guildID = Snowflake(config.guildID)
 
         teamKillExt =
             TeamKillExtension(config.teamKillWebhook, config.teamKillFormat, config.reportFormat, moderatorRole)

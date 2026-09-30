@@ -4,7 +4,7 @@ import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.proto.ChatLog
 import com.graywar.noServerManager.proto.JoinLeaveLog
 import com.graywar.noServerManager.proto.MissionStatus
-import dev.kord.core.entity.effectiveName
+import dev.kord.common.entity.Snowflake
 import dev.kord.core.event.message.MessageCreateEvent
 import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.event
@@ -14,6 +14,7 @@ class ChatMessagesExtension(
     val serverConfig: ServerConfig,
     val formatConfig: ChatMessageFormatConfig,
     val db: DB,
+    val guildID: Snowflake,
     val cb: suspend (username: String, content: String) -> Unit
 ) : Extension() {
     override val name: String = "batch-chat-messages-$index"
@@ -121,7 +122,7 @@ class ChatMessagesExtension(
                 ) pass() else fail()
             }
             action {
-                cb(event.message.author!!.effectiveName, event.message.content)
+                cb(event.message.author!!.asMember(guildID).effectiveName, event.message.content)
             }
         }
     }
