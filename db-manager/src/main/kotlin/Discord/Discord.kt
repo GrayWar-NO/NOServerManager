@@ -75,7 +75,7 @@ class Discord(
         val guildID = Snowflake(config.guildID)
 
         serverMessageExtensions = config.serverWebhooks.mapIndexed { index, serverConfig ->
-            val ext = ChatMessagesExtension(index, serverConfig, config.chatMessages, db, guildID) { username, content ->
+            val ext = ChatMessagesExtension(index, serverConfig, config.chatMessages, db) { username, content ->
                 cbEdgeAgent.discordMessageFlows[index + 1]?.trySend(
                     ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
                 )
