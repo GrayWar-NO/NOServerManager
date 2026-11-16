@@ -13,7 +13,7 @@ object Servers : Table() {
 object Missions : Table() {
     val id = integer("id").autoIncrement()
     val pvp = bool("pvp")
-    val name = varchar("name", 50)
+    val name = text("name")
     override val primaryKey = PrimaryKey(id)
 }
 
@@ -53,7 +53,7 @@ object Sorties : Table() {
 object Bans : Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
-    val reason = varchar("reason", 500)
+    val reason = text("reason")
     val startTime = timestamp("startTime")
     val endTime = timestamp("endtime").nullable()
     val effective = bool("effective").default(true)
@@ -63,7 +63,7 @@ object Bans : Table() {
 object Kicks : Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
-    val reason = varchar("reason", 500)
+    val reason = text("reason")
     val time = timestamp("time")
     override val primaryKey = PrimaryKey(id)
 }
@@ -71,7 +71,7 @@ object Kicks : Table() {
 object Warns : Table() {
     val id = long("id").autoIncrement()
     val steamID = ulong("steamid")
-    val reason = varchar("reason", 500)
+    val reason = text("reason")
     val time = timestamp("time")
     override val primaryKey = PrimaryKey(id)
 }
@@ -84,7 +84,7 @@ object Kills : Table() {
     val killerName = varchar("killername", 50).nullable()
     val killedID = ulong("killedID").nullable()
     val killedName = varchar("killedName", 50)
-    val weapon = varchar("weapon", 100).nullable()
+    val weapon = text("weapon").nullable()
     val time = timestamp("time")
     override val primaryKey = PrimaryKey(id)
 }
@@ -96,7 +96,7 @@ object TeamKills : Table() {
     val killerName = varchar("killername", 50)
     val killedID = ulong("killedID")
     val killedName = varchar("killedName", 50)
-    val weapon = varchar("weapon", 100)
+    val weapon = text("weapon")
     val time = timestamp("time")
     override val primaryKey = PrimaryKey(id)
 }
@@ -107,7 +107,7 @@ object Messages : Table() {
     val time = timestamp("time")
     val channel = varchar("channel", 50)
     val mission = long("mission").references(ServerMissions.id)
-    val text = varchar("text", 500)
+    val text = text("text")
     override val primaryKey = PrimaryKey(id)
 }
 
