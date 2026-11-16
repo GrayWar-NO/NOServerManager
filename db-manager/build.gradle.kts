@@ -60,7 +60,7 @@ kordEx {
         voice = false
     }
     ignoreIncompatibleKotlinVersion.set(true)
-    kordExVersion = null // latest
+    kordExVersion = "2.6.0-SNAPSHOT" // latest -> null
 }
 
 kotlin {

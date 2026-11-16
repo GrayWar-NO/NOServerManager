@@ -4,7 +4,6 @@ import com.graywar.noServerManager.dbManager.DB
 import com.graywar.noServerManager.proto.ChatLog
 import com.graywar.noServerManager.proto.JoinLeaveLog
 import com.graywar.noServerManager.proto.MissionStatus
-import dev.kord.core.entity.effectiveName
 import dev.kord.core.event.message.MessageCreateEvent
 import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.event
@@ -48,10 +47,10 @@ class ChatMessagesExtension(
             content = private.format(argMap)
         )
         if (message.messageChannel == "all") {
-            publicMessageWebhook.send {
-                username = userName
+            publicMessageWebhook.send(
+                username = userName,
                 content = public.format(argMap)
-            }
+            )
         }
     }
 
@@ -117,11 +116,12 @@ class ChatMessagesExtension(
         event<MessageCreateEvent> {
             check {
                 if (event.message.channelId == publicMessageWebhook.webhook.channelId &&
-                    !(event.message.author?.isBot ?: true)
+                    !(event.message.author?.isBot ?: true) &&
+                    event.member != null
                 ) pass() else fail()
             }
             action {
-                cb(event.message.author!!.effectiveName, event.message.content)
+                cb(event.member!!.effectiveName, event.message.content)
             }
         }
     }
