@@ -661,14 +661,26 @@ class DB() {
         val data = if (user == null) {
             transaction {
                 (ServerMissions innerJoin Missions innerJoin Servers)
-                    .select(ServerMissions.columns - ServerMissions.id + Missions.name - ServerMissions.server + Servers.name)
+                    .select(buildList {
+                        addAll(ServerMissions.columns)
+                        remove(ServerMissions.id)
+                        add(Missions.name)
+                        remove(ServerMissions.server)
+                        add(Servers.name)
+                    })
                     .orderBy(ServerMissions.startTime to SortOrder.DESC)
                     .toList()
             }
         } else {
             transaction {
                 (ServerMissions innerJoin MissionPlayers innerJoin Missions innerJoin Servers)
-                    .select(ServerMissions.columns - ServerMissions.id + Missions.name - ServerMissions.server + Servers.name)
+                    .select(buildList {
+                        addAll(ServerMissions.columns)
+                        remove(ServerMissions.id)
+                        add(Missions.name)
+                        remove(ServerMissions.server)
+                        add(Servers.name)
+                    })
                     .where { MissionPlayers.steamID eq user }
                     .orderBy(ServerMissions.startTime to SortOrder.DESC)
                     .distinct()
@@ -689,7 +701,11 @@ class DB() {
             transaction {
                 Kicks
                     .leftJoin(MissionPlayers, { Kicks.steamID }, { MissionPlayers.steamID })
-                    .select(Kicks.columns - Kicks.id + MissionPlayers.name)
+                    .select(buildList {
+                        addAll(Kicks.columns)
+                        remove(Kicks.id)
+                        add(MissionPlayers.name)
+                    })
                     .withDistinctOn(Kicks.id)
                     .orderBy(Kicks.id to SortOrder.DESC)
                     .toList()
@@ -718,7 +734,11 @@ class DB() {
             transaction {
                 Warns
                     .leftJoin(MissionPlayers, { Warns.steamID }, { MissionPlayers.steamID })
-                    .select(Warns.columns - Warns.id + MissionPlayers.name)
+                    .select(buildList {
+                        addAll(Warns.columns)
+                        remove(Warns.id)
+                        add(MissionPlayers.name)
+                    })
                     .withDistinctOn(Warns.id)
                     .orderBy(Warns.id to SortOrder.DESC)
                     .toList()

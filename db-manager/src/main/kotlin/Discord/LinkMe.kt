@@ -61,7 +61,7 @@ class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Sn
                 addLinkedRole(user.id)
                 codesToSteamIDs.remove(arguments.code)
                 respond {
-                    content = "Your in-game stats have been linked sucessfully!"
+                    content = "Your in-game stats have been linked successfully!"
                 }
             }
         }

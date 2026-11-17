@@ -5,6 +5,7 @@ import com.graywar.noServerManager.dbManager.Discord.CallbackEvent
 import com.graywar.noServerManager.dbManager.Discord.LoggedServerEvent
 import com.graywar.noServerManager.proto.*
 import io.grpc.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.awaitCancellation
@@ -144,6 +145,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                 db.endBan(request.steamID.toULong(), request.banEnd)
             }
             sendBanBack(request, listOf(source))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -214,6 +217,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     request.time
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -246,6 +251,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                 request.time,
                 serverID
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()
@@ -301,6 +308,8 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
                     source
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return Ack.newBuilder().setOk(false).build()

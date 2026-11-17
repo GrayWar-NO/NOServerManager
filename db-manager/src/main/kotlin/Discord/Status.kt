@@ -11,6 +11,7 @@ import dev.kord.rest.builder.message.EmbedBuilder
 import dev.kord.rest.builder.message.EmbedBuilder.Companion.ZERO_WIDTH_SPACE
 import dev.kord.rest.builder.message.embed
 import dev.kordex.core.extensions.Extension
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -48,7 +49,9 @@ class Status(
                 delay(config.updateRateSeconds.seconds)
                 try {
                     update()
-                } catch (e: Exception) {
+                } catch (e: CancellationException) {
+                    throw e
+                }catch (e: Exception) {
                     e.printStackTrace()
                 }
             }

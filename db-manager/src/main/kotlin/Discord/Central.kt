@@ -18,6 +18,7 @@ import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.ephemeralSlashCommand
 import dev.kordex.core.extensions.publicSlashCommand
 import dev.kordex.i18n.Key
+import kotlinx.coroutines.CancellationException
 
 class ServerCommandArgs : Arguments() {
     val target by string {
@@ -110,7 +111,9 @@ class CentralServerExtension(
                     respond {
                         content = contentStr
                     }
-                } catch (e: Exception) {
+                } catch (e: CancellationException) {
+                    throw e
+                }catch (e: Exception) {
                     e.printStackTrace()
                     respond {
                         content = "Failed to get servers"
