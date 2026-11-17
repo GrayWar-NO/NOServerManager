@@ -13,12 +13,15 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.onCompletion
+import org.apache.logging.log4j.LogManager
 import java.util.*
 import kotlin.time.Clock
 import kotlin.time.Instant
 
 
 class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgentServiceCoroutineImplBase() {
+    private val logger = LogManager.getLogger(EdgeAgentServiceImpl::class.java)
+
     private val banSubscribers = mutableMapOf<String, SendChannel<BanRequest>>()
     private val commandSubscribers = mutableMapOf<String, SendChannel<Command>>()
     internal var discordMessageFlows = mutableMapOf<Int, SendChannel<ChatBack>>()
@@ -33,8 +36,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     override fun sendChatLogsStream(requests: Flow<ChatLog>): Flow<ChatBack> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-        println("[Central] $source connected to chat logs streaming.")
+        logger.info("[Central] {} connected to chat logs streaming.", source)
         val sID = db.getOrCreateServerIdFromName(source)
         discordMessageFlows[sID] = channel
         requests
@@ -51,38 +53,34 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
         awaitClose {
             discordMessageFlows.remove(sID)
-            println("[Central] $source disconnected from chat logs streaming.")
+            logger.info("[Central] {} disconnected from chat logs streaming.", source)
         }
     }
 
     override fun subscribeToBans(request: Empty): Flow<BanRequest> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
 
-        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-        println("[Central] $source subscribed to bans")
+        logger.info("[Central] {} subscribed to bans", source)
 
         banSubscribers.put(source, channel)?.close()
 
         try {
             awaitCancellation()
         } finally {
-            @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-            println("[Central] $source disconnected")
+            logger.info("[Central] {} disconnected", source)
             banSubscribers.remove(source)
         }
     }
 
     override fun subscribeToCommands(requests: Flow<CommandResult>): Flow<Command> = channelFlow {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-        println("[Central] Agent subscribed to commands: $source")
+        logger.info("[Central] Agent subscribed to commands: {}", source)
 
         commandSubscribers.put(source, channel)?.close()
 
         requests
             .onCompletion {
-                @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-                println("[Central] Agent disconnected from commands: $source")
+                logger.info("[Central] Agent disconnected from commands: {}", source)
                 commandSubscribers.remove(source)
             }
             .collect { result ->
@@ -94,12 +92,10 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
 
     override suspend fun statusStream(requests: Flow<StatusResponse>): Empty {
         val source = AgentIdInterceptor.AGENT_ID_CTX_KEY.get()
-        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-        println("[Central] $source status set up")
+        logger.info("[Central] {} status set up", source)
         requests
             .onCompletion {
-                @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-                println("[Central] $source disconnected from status stream")
+                logger.info("[Central] {} disconnected from status stream", source)
             }
             .collect { result ->
                 serverStatuses[source] = Pair(Clock.System.now(), result)
@@ -160,7 +156,7 @@ class EdgeAgentServiceImpl(private val db: DB) : EdgeAgentServiceGrpcKt.EdgeAgen
             .filterKeys { key -> !excludedServers.contains(key) }
             .forEach { (key, channel) ->
                 channel.trySend(request)
-                println("[Ban] Sending ban for ${request.steamID} to server $key")
+                logger.info("[Ban] Sending ban for {} to server {}", request.steamID, key)
             }
         discordEventsCallback?.invoke(CallbackEvent.BanEvent(request, excludedServers.joinToString(", ")))
     }

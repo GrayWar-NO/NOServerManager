@@ -10,13 +10,17 @@ import dev.kordex.core.commands.converters.impl.int
 import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.ephemeralSlashCommand
 import dev.kordex.i18n.Key
+import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.apache.logging.log4j.LogManager
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 
 class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Snowflake) : Extension() {
+    private val logger = LogManager.getLogger(LinkMeExtension::class.java)
+
     override val name: String = "linkMe"
     val codesToSteamIDs = mutableMapOf<Int, ULong>()
 
@@ -79,7 +83,9 @@ class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Sn
             val member = guild.getMember(userId)
             member.addRole(linkedRole)
         } catch (e: EntityNotFoundException) {
-            println("Could not add linked role to user ${userId.value}: ${e.message}")
+            logger.warn("Could not add linked role to user {}", userId.value, e)
+        } catch (_: CancellationException) {
+            return
         } catch (_: Exception) {
         }
     }

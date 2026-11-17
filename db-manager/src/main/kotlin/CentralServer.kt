@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.apache.logging.log4j.LogManager
 import java.io.File
 import kotlin.time.Duration.Companion.minutes
 
@@ -21,6 +22,8 @@ data class HostConfig(val port: Int, val db: DataBaseConfig, val discord: Discor
 
 
 class CentralServer {
+    private val logger = LogManager.getLogger(CentralServer::class.java)
+
     private val config = ConfigLoaderBuilder.default()
         .addFileSource("central.conf")
         .build()
@@ -60,8 +63,7 @@ class CentralServer {
             edgeAgent.setPermissionBreakdownGetter(discord.modListExt::get)
         }
         manageEndingBans()
-        @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-        println("[Central] gRPC server started on ${config.port}")
+        logger.info("[Central] gRPC server started on {}", config.port)
         server.awaitTermination()
     }
 
@@ -78,7 +80,7 @@ class CentralServer {
                 edgeAgent.sendBanBack(ban, emptyList())
             }
         }
-        println("cancelled")
+        logger.info("cancelled")
     }
 
 

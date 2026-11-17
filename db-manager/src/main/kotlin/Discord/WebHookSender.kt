@@ -5,14 +5,19 @@ import dev.kord.common.entity.Snowflake
 import dev.kord.core.Kord
 import dev.kord.rest.builder.message.allowedMentions
 import dev.kord.rest.builder.message.create.WebhookMessageCreateBuilder
-import kotlin.require
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
+import org.apache.logging.log4j.LogManager
+import kotlin.require
 
 class WebhookSender(
     private val kord: Kord,
     private val webhookUrl: String,
     private val username: String
 ) {
+    private val logger = LogManager.getLogger(WebhookSender::class.java)
 
     var webhook: DiscordWebhook
 
@@ -54,7 +59,9 @@ class WebhookSender(
         try {
             kord.rest.webhook.executeWebhook(webhook.id, webhook.token.value!!, builder = payload)
         } catch (e: Exception) {
-            println("Failed to send webhook message: ${e.message}")
+            if (e is CancellationException) throw e
+            currentCoroutineContext().ensureActive()
+            logger.warn("Failed to send webhook message", e)
         }
     }
 }

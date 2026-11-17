@@ -10,6 +10,7 @@ import dev.kordex.core.builders.ExtensibleBotBuilder
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import kotlinx.coroutines.*
+import org.apache.logging.log4j.LogManager
 import kotlin.time.Duration.Companion.seconds
 
 data class ServerConfig(val publicChat: String, val privateChat: String)
@@ -60,6 +61,8 @@ class Discord(
     val cbEdgeAgent: EdgeAgentServiceImpl,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
+    private val logger = LogManager.getLogger(Discord::class.java)
+
     private var botJob: Job? = null
     private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
     internal lateinit var teamKillExt: TeamKillExtension
@@ -128,17 +131,16 @@ class Discord(
                 try {
                     bot.start()
                 } catch (e: Exception) {
-                    println("[Discord] Bot crashed: ${e.message}")
+                    logger.error("[Discord] Bot crashed", e)
                 }
-                @Suppress("KotlinPrintToLogpoint", "RedundantSuppression")
-                println("[Discord] Bot stopped. Restarting in 5s...")
+                logger.info("[Discord] Bot stopped. Restarting in 5s...")
                 delay(5.seconds)
             }
         }
 
         scope.launch {
             linkExt.initLinkedRoles()
-            println("Finished initializing discord roles")
+            logger.info("Finished initializing discord roles")
         }
     }
 
