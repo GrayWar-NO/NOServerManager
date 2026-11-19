@@ -1,3 +1,5 @@
+import dev.kordex.gradle.plugins.kordex.DataCollection
+
 plugins {
     kotlin("jvm")
     application
@@ -52,9 +54,9 @@ dependencies {
 kordEx {
     bot {
         voice = false
+        dataCollection(DataCollection.None)
     }
-    ignoreIncompatibleKotlinVersion.set(true)
-    kordExVersion = "2.6.0-SNAPSHOT" // latest -> null
+    kordExVersion = null // latest
 }
 
 kotlin {

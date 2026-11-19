@@ -65,6 +65,7 @@ class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Sn
                 }
             }
         }
+        initLinkedRoles()
     }
 
     fun newLink(link: LinkUser) {
@@ -95,6 +96,7 @@ class LinkMeExtension(val db: DB, val linkedRole: Snowflake, val linkedGuild: Sn
             batch.forEach { user -> addLinkedRole(Snowflake(user)) }
             delay(1.seconds)
         }
+        logger.info("Finished initializing discord roles")
     }
 
 }

@@ -22,7 +22,7 @@ data class HostConfig(val port: Int, val db: DataBaseConfig, val discord: Discor
 
 
 class CentralServer {
-    private val logger = LogManager.getLogger(CentralServer::class.java)
+    private val logger = LogManager.getLogger()
 
     private val config = ConfigLoaderBuilder.default()
         .addFileSource("central.conf")

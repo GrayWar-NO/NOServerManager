@@ -16,10 +16,7 @@ import kotlin.time.Duration.Companion.seconds
 data class ServerConfig(val publicChat: String, val privateChat: String)
 data class LogFormat(val format: String, val sanitizeForCode: Boolean, val sanitizeForDiscord: Boolean)
 data class OnOffFormat(
-    val onFormat: String,
-    val offFormat: String,
-    val sanitizeForCode: Boolean,
-    val sanitizeForDiscord: Boolean
+    val onFormat: String, val offFormat: String, val sanitizeForCode: Boolean, val sanitizeForDiscord: Boolean
 )
 
 data class OnOffEventFormat(val publicFormat: OnOffFormat, val privateFormat: OnOffFormat)
@@ -61,7 +58,7 @@ class Discord(
     val cbEdgeAgent: EdgeAgentServiceImpl,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
-    private val logger = LogManager.getLogger(Discord::class.java)
+    private val logger = LogManager.getLogger()
 
     private var botJob: Job? = null
     private lateinit var serverMessageExtensions: List<ChatMessagesExtension>
@@ -76,25 +73,6 @@ class Discord(
 
     suspend fun start() {
         val guildID = Snowflake(config.guildID)
-
-        serverMessageExtensions = config.serverWebhooks.mapIndexed { index, serverConfig ->
-            val ext = ChatMessagesExtension(index, serverConfig, config.chatMessages, db) { username, content ->
-                cbEdgeAgent.discordMessageFlows[index + 1]?.trySend(
-                    ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
-                )
-            }
-            ext
-        }
-
-        teamKillExt =
-            TeamKillExtension(config.teamKillWebhook, config.teamKillFormat, config.reportFormat, moderatorRole)
-        linkExt = LinkMeExtension(
-            db,
-            linkedRole = Snowflake(config.linkedRole),
-            linkedGuild = guildID
-        )
-        modListExt = ModListExtension(guildID, moderatorRole, adminRole, db)
-        banWebhookExt = BanLogExt(config.banWebhook, db)
 
         val bot = ExtensibleBotBuilder().apply {
             kord {
@@ -114,19 +92,45 @@ class Discord(
                 }
             }
             extensions {
-                serverMessageExtensions.forEach { ext -> add { ext } }
-                add { teamKillExt }
+                config.serverWebhooks.forEachIndexed { index, serverConfig ->
+                    add {
+                        ChatMessagesExtension(index, serverConfig, config.chatMessages, db) { username, content ->
+                            cbEdgeAgent.discordMessageFlows[index + 1]?.trySend(
+                                ChatBack.newBuilder().setSenderName(username).setMessage(content).build()
+                            )
+                        }
+                    }
+                }
+                add {
+                    TeamKillExtension(
+                        config.teamKillWebhook,
+                        config.teamKillFormat,
+                        config.reportFormat,
+                        moderatorRole
+                    )
+                }
                 add { CentralServerExtension(db, cbEdgeAgent, adminRole, moderatorRole) }
                 add { ModQueriesExtension(db, adminRole, moderatorRole) }
-                add { linkExt }
+                add { LinkMeExtension(db, Snowflake(config.linkedRole), guildID) }
                 add { StatsExtension(db) }
                 add { Status(config.status, guildID, cbEdgeAgent, db.getAllServers()) }
-                add { modListExt }
-                add { banWebhookExt }
+                add { ModListExtension(guildID, moderatorRole, adminRole, db) }
+                add { BanLogExt(config.banWebhook, db) }
+            }
+            hooks {
+                afterExtensionsAdded {
+                    serverMessageExtensions = List(config.serverWebhooks.size) { i ->
+                        extensions["batch-chat-messages-$i"]!! as ChatMessagesExtension
+                    }
+                    linkExt = findExtension<LinkMeExtension>()!!
+                    teamKillExt = findExtension<TeamKillExtension>()!!
+                    banWebhookExt = findExtension<BanLogExt>()!!
+                    modListExt = findExtension<ModListExtension>()!!
+                }
             }
         }.build(config.token)
 
-        botJob = scope.launch {
+        botJob = scope.launch(CoroutineName("Kordex-Bot-Main")) {
             while (isActive) {
                 try {
                     bot.start()
@@ -136,11 +140,6 @@ class Discord(
                 logger.info("[Discord] Bot stopped. Restarting in 5s...")
                 delay(5.seconds)
             }
-        }
-
-        scope.launch {
-            linkExt.initLinkedRoles()
-            logger.info("Finished initializing discord roles")
         }
     }
 
@@ -155,10 +154,7 @@ class Discord(
             is CallbackEvent.ReportEvent -> teamKillExt.sendReport(message.event, message.source)
             is CallbackEvent.ServerEvent -> sendLoggedEvent(message.event, message.serverID)
             is CallbackEvent.TeamKillEvent -> teamKillExt.sendTeamKill(
-                message.event.first,
-                message.event.second,
-                message.event.third,
-                message.source
+                message.event.first, message.event.second, message.event.third, message.source
             )
         }
     }
@@ -185,9 +181,6 @@ sealed interface LoggedServerEvent {
 
 
 fun escapeDiscordMarkdown(text: String): String =
-    text
-        .replace(Regex("""([\\*_~`|#\[])"""), """\\$1""")
-        .replace(Regex(""":?//"""), "$0\u200B")
+    text.replace(Regex("""([\\*_~`|#\[])"""), """\\$1""").replace(Regex(""":?//"""), "$0\u200B")
 
-fun escapeForCodeBlock(text: String) =
-    text.replace("```", "``\u200B`")
+fun escapeForCodeBlock(text: String) = text.replace("```", "``\u200B`")
